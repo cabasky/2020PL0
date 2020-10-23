@@ -49,6 +49,8 @@ void getch(void)
 	ch = line[++cc];
 } // getch
 
+
+
 //////////////////////////////////////////////////////////////////////
 // gets a symbol from input stream.
 void getsym(void)
@@ -135,6 +137,51 @@ void getsym(void)
 		else
 		{
 			sym = SYM_LES;     // <
+		}
+	}
+	else if(ch=='/'){
+		getch();
+		if(ch=='/'){
+			sym=SYM_LINEEXPL;
+			while(cc!=ll) getch();
+			getsym();
+		}
+		else if(ch=='*'){
+			sym=SYM_BLOCKEXPLBEG;
+			blockExplanation();
+			getsym();
+		}
+		else sym=SYM_SLASH;
+	}
+	else if(ch=='|'){
+		getch();
+		if(ch=='|'){
+			sym=SYM_OR;
+			getch();
+		}
+		else{
+			printf("Fatal Error: Unknown character.\n");
+			exit(1);
+		}
+	}
+	else if(ch=='&'){
+		getch();
+		if(ch=='&'){
+			sym=SYM_AND;
+			getch();
+		}
+		else{
+			sym=SYM_ADR;
+		}
+	}
+	else if(ch=='*'){
+		getch();
+		if(ch=='/'){
+			sym=SYM_BLOCKEXPLEND;
+			getch();
+		}
+		else{
+			sym=SYM_TIMES;
 		}
 	}
 	else
@@ -869,9 +916,9 @@ void main ()
 	int i;
 	symset set, set1, set2;
 
-	printf("Please input source file name: "); // get file name to be compiled
-	scanf("%s", s);
-	if ((infile = fopen(s, "r")) == NULL)
+	printf("Please input source file name: \n"); // get file name to be compiled
+	//scanf("%s", s);
+	if ((infile = fopen("example.txt", "r")) == NULL)
 	{
 		printf("File %s can't be opened.\n", s);
 		exit(1);

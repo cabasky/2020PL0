@@ -1,0 +1,17 @@
+2020.10.23
+1.Add some new symbols and their reading method
+    /*      :   SYM_BLOCKEXPLBEG
+    */      :   SYM_BLOCKEXPLEND
+    //      :   SYM_LINEEXPL
+    goto    :   SYM_GOTO
+    else    :   SYM_ELSE
+    [       :   SYM_LSQ
+    ]       :   SYM_RSQ
+    !       :   SYM_NOT
+    ***:    :   SYM_LINETAG
+    &       :   SYM_ADR
+    &&      :   SYM_NOT
+    ||      :   SYM_OR
+
+2.Add the function to deal with explanation.
+    An explanation can be served as a '\n' grammarly.
