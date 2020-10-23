@@ -15,3 +15,6 @@
 
 2.Add the function to deal with explanation.
     An explanation can be served as a '\n' grammarly.
+
+3.Well define the parameterlist of procedure.
+    Regard mask->level as head. Plan to make a chain for all procedure.

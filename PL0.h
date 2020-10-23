@@ -62,7 +62,7 @@ enum symtype
 
 enum idtype
 {
-	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE
+	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE, ID_ACTUAL
 };
 
 enum opcode
@@ -115,7 +115,7 @@ char* err_msg[] =
 /* 23 */    "The symbol can not be followed by a factor.",
 /* 24 */    "The symbol can not be as the beginning of an expression.",
 /* 25 */    "The number is too great.",
-/* 26 */    "",
+/* 26 */    "The variable has been previously declared.",
 /* 27 */    "",
 /* 28 */    "",
 /* 29 */    "",
@@ -189,7 +189,9 @@ typedef struct
 	int   kind;
 	short level;
 	short address;
-} mask;
+} mask,params,*paramlist;
+
+short next[MAXADDRESS+1],totalparam=0;
 
 FILE* infile;
 

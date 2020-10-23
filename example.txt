@@ -1,5 +1,13 @@
 var i,j;
+procedure a;
+var s;
 begin
-  i := -1;
-  j := i + 1;
+	s:=s+1;
+end;
+
+begin
+	i := -1;
+	;
+	j := i + 1;
+	call a;
 end.

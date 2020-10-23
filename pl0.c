@@ -49,7 +49,21 @@ void getch(void)
 	ch = line[++cc];
 } // getch
 
-
+//skip the block explnation
+void blockExplanation(){
+	int status=0;
+	do{
+		getch();
+		if(status==0){
+			if(ch=='*') status=1;
+		}
+		else if(status==1){
+			if(ch=='/') status=2;
+			else status=0;
+		}
+	}while(status!=2);
+	getch();
+}
 
 //////////////////////////////////////////////////////////////////////
 // gets a symbol from input stream.
@@ -260,7 +274,8 @@ void enter(int kind)
 		break;
 	case ID_PROCEDURE:
 		mk = (mask*) &table[tx];
-		mk->level = level;
+		mk->level = 0;
+		mk->address = 0;
 		break;
 	} // switch
 } // enter
@@ -327,7 +342,7 @@ void listcode(int from, int to)
 	printf("\n");
 	for (i = from; i < to; i++)
 	{
-		printf("%5d %s\t%d\t%d\n", i, mnemonic[code[i].f], code[i].l, code[i].a);
+		printf("code---%5d %s\t%d\t%d\n", i, mnemonic[code[i].f], code[i].l, code[i].a);
 	}
 	printf("\n");
 } // listcode
@@ -908,6 +923,13 @@ void interpret()
 	printf("End executing PL/0 program.\n");
 } // interpret
 
+//test
+void listvar(){
+	for(int i=1;i<=tx;i++){
+		printf("%d: %s\n",i,table[i].name);
+		printf("\t kind %d\n\n",table[i].kind);
+	}
+}
 //////////////////////////////////////////////////////////////////////
 void main ()
 {
@@ -965,6 +987,7 @@ void main ()
 	else
 		printf("There are %d error(s) in PL/0 program.\n", err);
 	listcode(0, cx);
+	listvar();
 } // main
 
 //////////////////////////////////////////////////////////////////////
