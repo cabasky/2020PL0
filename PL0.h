@@ -62,7 +62,7 @@ enum symtype
 
 enum idtype
 {
-	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE, ID_ACTUAL
+	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE
 };
 
 enum opcode

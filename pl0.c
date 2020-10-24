@@ -248,7 +248,14 @@ void test(symset s1, symset s2, int n)
 
 //////////////////////////////////////////////////////////////////////
 int dx;  // data allocation index
-
+//check redefination in same block.
+int redefinationcheck(char *id,int paranum){
+	int i;
+	for(i=tx;((mask*)&table[i])->address>=3;i--) if(!strcmp(id,table[i].name)) return 1;
+	int j=i;
+	for(i=0;i<paranum;i++) if(!strcmp(id,table[j--].name)) return 1;
+	return 0;
+}
 // enter object(constant, variable or procedre) into table.
 void enter(int kind)
 {
@@ -288,6 +295,9 @@ int position(char* id)
 	strcpy(table[0].name, id);
 	i = tx + 1;
 	while (strcmp(table[--i].name, id) != 0);
+		/*
+			So as parameter list. dx<=-1.
+		*/
 	return i;
 } // position
 
@@ -682,11 +692,21 @@ void block(symset fsys)
 			getsym();
 			do
 			{
-				constdeclaration();
+				if(!redefinationcheck(id,mk->level))
+					constdeclaration();
+				else{
+					error(26);
+					getsym();
+				}
 				while (sym == SYM_COMMA)
 				{
 					getsym();
-					constdeclaration();
+					if(!redefinationcheck(id,mk->level))
+						constdeclaration();
+					else{
+						error(26);
+						getsym();
+					}
 				}
 				if (sym == SYM_SEMICOLON)
 				{
@@ -705,11 +725,21 @@ void block(symset fsys)
 			getsym();
 			do
 			{
-				vardeclaration();
+				if(!redefinationcheck(id,mk->level))
+					vardeclaration();
+				else{
+					error(26);
+					getsym();
+				}
 				while (sym == SYM_COMMA)
 				{
 					getsym();
-					vardeclaration();
+					if(!redefinationcheck(id,mk->level))
+						vardeclaration();
+					else{
+						error(26);
+						getsym();
+					}
 				}
 				if (sym == SYM_SEMICOLON)
 				{
@@ -728,7 +758,11 @@ void block(symset fsys)
 			getsym();
 			if (sym == SYM_IDENTIFIER)
 			{
-				enter(ID_PROCEDURE);
+				if(!redefinationcheck(id,mk->level))
+					enter(ID_PROCEDURE);
+				else{
+					error(26);
+				}
 				getsym();
 			}
 			else
@@ -925,9 +959,12 @@ void interpret()
 
 //test
 void listvar(){
-	for(int i=1;i<=tx;i++){
+	for(int i=1;i<=5;i++){
 		printf("%d: %s\n",i,table[i].name);
-		printf("\t kind %d\n\n",table[i].kind);
+		printf("kind %d\n",table[i].kind);
+		if(table[i].kind==ID_VARIABLE){
+			printf("dx %d\n",((mask*)&table[i])->address);
+		}
 	}
 }
 //////////////////////////////////////////////////////////////////////

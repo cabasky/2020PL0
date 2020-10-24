@@ -17,4 +17,18 @@
     An explanation can be served as a '\n' grammarly.
 
 3.Well define the parameterlist of procedure.
-    Regard mask->level as head. Plan to make a chain for all procedure.
+    Regard mask->level as parameter num. Plan to make a chain for all procedure.
+    In this meaning, the main block doesn't has parameterlist coz its level is 0.
+    In other way, the address of parameter varies from -1 to -level.
+
+4.Deal with re-defination problem.
+    An identifier couldn't be same as any of previous identfier in the same block;
+        If an local identfier has the same name with a global one, then any 
+    call to the name refer to the local one.
+
+    Compiler will check from parameterlist and previous identfier table.
+
+    If a variable or a constant is redefinated, compiler will skip it.
+    If a procedure is redefinated, compiler will skip its declaration but compiler
+    its code.
+

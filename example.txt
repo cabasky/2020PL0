@@ -1,5 +1,5 @@
-var i,j;
-procedure a;
+var i,j,i;
+procedure i;
 var s;
 begin
 	s:=s+1;
