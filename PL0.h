@@ -62,7 +62,7 @@ enum symtype
 
 enum idtype
 {
-	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE
+	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE, ID_ACTUAL
 };
 
 enum opcode
@@ -116,7 +116,7 @@ char* err_msg[] =
 /* 24 */    "The symbol can not be as the beginning of an expression.",
 /* 25 */    "The number is too great.",
 /* 26 */    "The variable has been previously declared.",
-/* 27 */    "",
+/* 27 */    "The actual parameter must refer to a previously declared variable.",
 /* 28 */    "",
 /* 29 */    "",
 /* 30 */    "",

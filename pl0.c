@@ -245,7 +245,10 @@ void test(symset s1, symset s2, int n)
 		destroyset(s);
 	}
 } // test
+//actual variable initialize
+void actualinit(){
 
+}
 //////////////////////////////////////////////////////////////////////
 int dx;  // data allocation index
 //check redefination in same block.
@@ -257,12 +260,12 @@ int redefinationcheck(char *id,int paranum){
 	return 0;
 }
 // enter object(constant, variable or procedre) into table.
-void enter(int kind)
+void enter(int kind,char *eid)
 {
 	mask* mk;
 
 	tx++;
-	strcpy(table[tx].name, id);
+	strcpy(table[tx].name, eid);
 	table[tx].kind = kind;
 	switch (kind)
 	{
@@ -314,7 +317,7 @@ void constdeclaration()
 			getsym();
 			if (sym == SYM_NUMBER)
 			{
-				enter(ID_CONSTANT);
+				enter(ID_CONSTANT,id);
 				getsym();
 			}
 			else
@@ -331,11 +334,50 @@ void constdeclaration()
 } // constdeclaration
 
 //////////////////////////////////////////////////////////////////////
-void vardeclaration(void)
+void vardeclaration(int paranum)
 {
+	int actualflag=0;
+	if(sym==SYM_ADR){
+		getsym();
+		actualflag=1;
+	}
 	if (sym == SYM_IDENTIFIER)
 	{
-		enter(ID_VARIABLE);
+		if(actualflag){
+			char tmp[20];
+			strcpy(tmp,id);
+			getsym();
+			if(sym==SYM_EQU){
+				getsym();
+				if(sym==SYM_IDENTIFIER){
+					int pos=position(id);
+					if(!pos||((mask*)(&table[pos]))->kind==ID_CONSTANT||((mask*)(&table[pos]))->kind==ID_PROCEDURE) error(27);
+					if(!redefinationcheck(tmp,paranum)){
+						enter(ID_ACTUAL,tmp);
+						((mask*)(&table[tx]))->level=((mask*)(&table[pos]))->address;
+					}
+					else{
+						error(26);
+						getsym();
+					}
+				}
+				else{
+					error(27);
+					//while(!sym==SYM_COMMA&&!sym==SYM_SEMICOLON) getsym(); 
+				}
+			}
+			else{
+				error(27);
+				//while(!sym==SYM_COMMA&&!sym==SYM_SEMICOLON) getsym(); 
+			}
+		}
+		else{
+			if(!redefinationcheck(id,paranum)) enter(ID_VARIABLE,id);
+			else{
+				error(26);
+				getsym();
+			}
+		}
 		getsym();
 	}
 	else
@@ -725,21 +767,11 @@ void block(symset fsys)
 			getsym();
 			do
 			{
-				if(!redefinationcheck(id,mk->level))
-					vardeclaration();
-				else{
-					error(26);
-					getsym();
-				}
+				vardeclaration(mk->level);
 				while (sym == SYM_COMMA)
 				{
 					getsym();
-					if(!redefinationcheck(id,mk->level))
-						vardeclaration();
-					else{
-						error(26);
-						getsym();
-					}
+					vardeclaration(mk->level);
 				}
 				if (sym == SYM_SEMICOLON)
 				{
@@ -759,7 +791,7 @@ void block(symset fsys)
 			if (sym == SYM_IDENTIFIER)
 			{
 				if(!redefinationcheck(id,mk->level))
-					enter(ID_PROCEDURE);
+					enter(ID_PROCEDURE,id);
 				else{
 					error(26);
 				}
@@ -817,6 +849,7 @@ void block(symset fsys)
 	mk->address = cx;
 	cx0 = cx;
 	gen(INT, 0, block_dx);
+	
 	set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
 	set = uniteset(set1, fsys);
 	statement(set);
@@ -843,6 +876,7 @@ void interpret()
 {
 	int pc;        // program counter
 	int stack[STACKSIZE];
+	memset(stack,0,sizeof(stack));
 	int top;       // top of stack
 	int b;         // program, base, and top-stack register
 	instruction i; // instruction register
@@ -951,6 +985,16 @@ void interpret()
 			top--;
 			break;
 		} // switch
+		int i;
+		for(i=0;i<=top;i++){
+			printf("%3d",stack[i]);
+		}
+		printf("\n");
+		for(i=0;i<b;i++){
+			printf("   ");
+		}
+		printf("  b\n");
+		puts("");
 	}
 	while (pc);
 
@@ -959,13 +1003,11 @@ void interpret()
 
 //test
 void listvar(){
-	for(int i=1;i<=5;i++){
+	for(int i=1;i<=6;i++){
 		printf("%d: %s\n",i,table[i].name);
-		printf("kind %d\n",table[i].kind);
-		if(table[i].kind==ID_VARIABLE){
-			printf("dx %d\n",((mask*)&table[i])->address);
-		}
+		printf("kind %d ,level %d ,adr %d\n",table[i].kind,((mask*)&table[i])->level,((mask*)&table[i])->address);
 	}
+	puts("");
 }
 //////////////////////////////////////////////////////////////////////
 void main ()

@@ -1,13 +1,17 @@
-var i,j,i;
-procedure i;
-var s;
+procedure a;
+	procedure d;
+	begin;
+	end;
 begin
-	s:=s+1;
 end;
-
+procedure b;
+	procedure c;
+	begin
+		call d;
+	end;
 begin
-	i := -1;
-	;
-	j := i + 1;
-	call a;
+	call c;
+end;
+begin
+	call b;
 end.
