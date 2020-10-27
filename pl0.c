@@ -437,6 +437,10 @@ void factor(symset fsys)
 					mk = (mask*) &table[i];
 					gen(LOD, level - mk->level, mk->address);
 					break;
+				case ID_ACTUAL:
+					mk=(mask*)&table[i];
+					gen(LOA,level-mk->level,mk->address);
+					break;
 				case ID_PROCEDURE:
 					error(21); // Procedure identifier can not be in an expression.
 					break;

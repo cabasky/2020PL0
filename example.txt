@@ -1,5 +1,5 @@
-var i,&j=i,&k=j;
+var i,&j=i,&k=j,l;
 begin
-	j:=-1;
-	k:=2;
+	i:=3;
+	l:=j+i;
 end.
