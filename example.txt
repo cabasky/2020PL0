@@ -1,17 +1,5 @@
-procedure a;
-	procedure d;
-	begin;
-	end;
+var i,&j=i,&k=j;
 begin
-end;
-procedure b;
-	procedure c;
-	begin
-		call d;
-	end;
-begin
-	call c;
-end;
-begin
-	call b;
+	j:=-1;
+	k:=2;
 end.

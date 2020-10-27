@@ -16,6 +16,8 @@
 2.Add the function to deal with explanation.
     An explanation can be served as a '\n' grammarly.
 
+2020.10.24
+
 3.Well define the parameterlist of procedure.
     Regard mask->level as parameter num. Plan to make a chain for all procedure.
     In this meaning, the main block doesn't has parameterlist coz its level is 0.
@@ -32,4 +34,15 @@
     If a procedure is redefinated, compiler will skip its declaration but compiler
     its code.
 
+2020.10.27
 
+5.I have no choice but add 3 new instructions.
+    1)ADR   levdif  address              Like LOD, find its real address and push it
+    into stack.
+    2)STA   levdif  address              Like STO, find the value, but regard the 
+    value as a new address, pop the stack top into this new address.
+    3)LOA   levdif  address              Like LOD, find the value, regard it as a 
+    new address, find the value in the new address and push it into stack.
+
+6.Compelete the assignment to an actual.
+    Use ADR/STO to initialize, and use STA to assign. 

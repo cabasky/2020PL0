@@ -11,6 +11,7 @@
 #include "PL0.h"
 #include "set.c"
 
+FILE * fpstack;
 //////////////////////////////////////////////////////////////////////
 // print error message.
 void error(int n)
@@ -287,6 +288,11 @@ void enter(int kind,char *eid)
 		mk->level = 0;
 		mk->address = 0;
 		break;
+	case ID_ACTUAL:
+		mk=(mask*) &table[tx];
+		mk->level=level;
+		mk->address=dx++;
+		break;
 	} // switch
 } // enter
 
@@ -354,7 +360,10 @@ void vardeclaration(int paranum)
 					if(!pos||((mask*)(&table[pos]))->kind==ID_CONSTANT||((mask*)(&table[pos]))->kind==ID_PROCEDURE) error(27);
 					if(!redefinationcheck(tmp,paranum)){
 						enter(ID_ACTUAL,tmp);
-						((mask*)(&table[tx]))->level=((mask*)(&table[pos]))->address;
+						if(((mask*)(&table[pos]))->kind==ID_VARIABLE)
+							reftable[tx]=pos;
+						else if(((mask*)(&table[pos]))->kind==ID_ACTUAL)
+							reftable[tx]=reftable[pos];
 					}
 					else{
 						error(26);
@@ -586,7 +595,7 @@ void statement(symset fsys)
 		{
 			error(11); // Undeclared identifier.
 		}
-		else if (table[i].kind != ID_VARIABLE)
+		else if (table[i].kind != ID_VARIABLE&&table[i].kind != ID_ACTUAL)
 		{
 			error(12); // Illegal assignment.
 			i = 0;
@@ -604,7 +613,11 @@ void statement(symset fsys)
 		mk = (mask*) &table[i];
 		if (i)
 		{
-			gen(STO, level - mk->level, mk->address);
+			if(table[i].kind==ID_VARIABLE)
+				gen(STO, level - mk->level, mk->address);
+			else if (table[i].kind==ID_ACTUAL){
+				gen(STA,level-mk->level,mk->address);
+			}
 		}
 	}
 	else if (sym == SYM_CALL)
@@ -849,6 +862,14 @@ void block(symset fsys)
 	mk->address = cx;
 	cx0 = cx;
 	gen(INT, 0, block_dx);
+	int it;
+	for(it=1;it<=tx;it++){
+		if(table[it].kind==ID_ACTUAL){
+			int levdif=((mask*)&table[it])->level-((mask*)&table[reftable[it]])->level;
+			gen(ADR,levdif,((mask*)&table[reftable[it]])->address);
+			gen(STO,0,((mask*)&table[it])->address);
+		}
+	}
 	
 	set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
 	set = uniteset(set1, fsys);
@@ -957,11 +978,22 @@ void interpret()
 				break;
 			} // switch
 			break;
+		case ADR:
+			stack[++top]=base(stack,b,i.l)+i.a;
+			break;
 		case LOD:
 			stack[++top] = stack[base(stack, b, i.l) + i.a];
 			break;
+		case LOA:
+			stack[++top] = stack[stack[base(stack, b, i.l)+i.a]];
+			break;
 		case STO:
 			stack[base(stack, b, i.l) + i.a] = stack[top];
+			printf("%d\n", stack[top]);
+			top--;
+			break;
+		case STA:
+			stack[stack[base(stack, b, i.l)+i.a]] = stack[top];
 			printf("%d\n", stack[top]);
 			top--;
 			break;
@@ -987,14 +1019,13 @@ void interpret()
 		} // switch
 		int i;
 		for(i=0;i<=top;i++){
-			printf("%3d",stack[i]);
+			fprintf(fpstack,"%4d",stack[i]);
 		}
-		printf("\n");
+		fprintf(fpstack,"\n");
 		for(i=0;i<b;i++){
-			printf("   ");
+			fprintf(fpstack,"    ");
 		}
-		printf("  b\n");
-		puts("");
+		fprintf(fpstack,"   b\n\n");
 	}
 	while (pc);
 
@@ -1061,12 +1092,14 @@ void main ()
 			fwrite(&code[i], sizeof(instruction), 1, hbin);
 		fclose(hbin);
 	}
+	fpstack=fopen("stacktest","w");
 	if (err == 0)
 		interpret();
 	else
 		printf("There are %d error(s) in PL/0 program.\n", err);
 	listcode(0, cx);
 	listvar();
+	fclose(fpstack);
 } // main
 
 //////////////////////////////////////////////////////////////////////

@@ -67,7 +67,7 @@ enum idtype
 
 enum opcode
 {
-	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC
+	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, STA, LOA, ADR
 };
 
 enum oprcode
@@ -168,10 +168,10 @@ char csym[NSYM + 1] =
 	' ', '+', '-', '(', ')', '=', ',', '.', ';', '[', ']', '!'
 };
 
-#define MAXINS   8
+#define MAXINS   11
 char* mnemonic[MAXINS] =
 {
-	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC"
+	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC","STA","LOA","ADR"
 };
 
 typedef struct
@@ -182,7 +182,7 @@ typedef struct
 } comtab;
 
 comtab table[TXMAX];
-
+short reftable[TXMAX];
 typedef struct
 {
 	char  name[MAXIDLEN + 1];
