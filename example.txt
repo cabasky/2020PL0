@@ -1,5 +1,10 @@
-var i,&j=i,&k=j,l;
+var a,b,ansx,ansy,c;
+procedure exgcd(z,&x,y);
+var &x1=x;
 begin
-	i:=3;
-	l:=j+i;
+	x1:=3;
+end;
+begin
+	ansx:=1;
+	call exgcd(1,ansx,2);
 end.

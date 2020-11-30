@@ -59,3 +59,23 @@
 
 7.Complete the function to call an actual.
     Use LOA to read.
+
+8.Complete the function to call procedure with parameters.
+    Define an new arry globalParameterlist[maxTx],as the chain to find the parame-
+    ters of an procedure. And another arry procparamnum[maxTx] to store the number
+    of parameters of all the procedure.
+    An function like this:
+        procedure func(a,b,c,d);
+    And we call it like this:
+        call func(1,2,i*j,k+1)
+    The a,b,c,d will have the address of -4,-3,-2,-1 in order.
+    Before calling the func, we have to compute all the parameters and push the
+    result into stack in oredr like this:
+    stack    1   2 i*j k+1   *   *   *
+      id   b-4 b-3 b-2 b-1   b b+1 b+2
+    In the procedure func, to find parameters, we can samely use the way "base 
+    address + offset address" to find it as normal variable.
+    If the parameter is an actual kind, and it refers to an variable, then we
+    store the real address in stack;
+    If the parameter is an actual kind but it refers to another actual, we will
+    store the address the second actual stores in the stack.

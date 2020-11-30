@@ -117,9 +117,9 @@ char* err_msg[] =
 /* 25 */    "The number is too great.",
 /* 26 */    "The variable has been previously declared.",
 /* 27 */    "The actual parameter must refer to a previously declared variable.",
-/* 28 */    "",
-/* 29 */    "",
-/* 30 */    "",
+/* 28 */    "Missing parameter list.",
+/* 29 */    "',' expected.",
+/* 30 */    "Parameter list mismatch.",
 /* 31 */    "",
 /* 32 */    "There are too many levels."
 };
@@ -183,6 +183,7 @@ typedef struct
 
 comtab table[TXMAX];
 short reftable[TXMAX];
+short procparamnum[TXMAX];
 typedef struct
 {
 	char  name[MAXIDLEN + 1];
@@ -191,7 +192,14 @@ typedef struct
 	short address;
 } mask,params,*paramlist;
 
-short next[MAXADDRESS+1],totalparam=0;
+params globalParamList[TXMAX+10];
+
+short next[TXMAX+10],totalparam=0,first[TXMAX];
+
+void addparameter(int prcd){
+	next[++totalparam]=first[prcd];
+	first[prcd]=totalparam;
+}
 
 FILE* infile;
 
