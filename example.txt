@@ -1,17 +1,10 @@
 var a,b,ansx,ansy,c;
-procedure exgcd(a,b,&x,&y);
-var x1,y1;
+procedure func(n,m);
 begin
-	if b=0 then x:=1;
-	if b=0 then y:=0;
-	if b<>0 then call exgcd(b,a-(a/b)*b,x,y);
-	if b<>0 then x1:=x;
-	if b<>0 then x:=y;
-	if b<>0 then y:=x1-(a/b)*y;
+	print(n,m);
+	print();
+	if n<>1 then call func(n-1,random(10*20));
 end;
 begin
-	a:=25;
-	b:=15;
-	call exgcd(1+2,b,3,ansx);
-	c:=a*ansx+b*ansy;
+	call func(10,20)
 end.

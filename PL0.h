@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#define NRW        13    // number of reserved words
+#define NRW        14    // number of reserved words
 #define TXMAX      500    // length of identifier table
 #define MAXNUMLEN  14     // maximum number of digits in numbers
 #define NSYM       12     // maximum number of symbols in array ssym and csym
@@ -149,7 +149,7 @@ char* word[NRW + 1] =
 	"", /* place holder */
 	"begin", "call", "const", "do", "end","if",
 	"odd", "procedure", "then", "var", "while",
-	"goto", "else"
+	"label","goto", "else"
 };
 
 int wsym[NRW + 1] =

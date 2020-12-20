@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "PL0.h"
 #include "set.c"
@@ -80,7 +81,7 @@ void blockExplanation(){
 void getsym(void)
 {
 	int i, k;
-	char a[MAXIDLEN + 1];
+	char a[MAXIDLEN + 1],random_str[7] = "random", print_str[6] = "print";
 
 	while (ch == ' '||ch == '\t')
 		getch();
@@ -102,6 +103,10 @@ void getsym(void)
 		while (strcmp(id, word[i--]));
 		if (++i)
 			sym = wsym[i]; // symbol is a reserved word
+		else if (strcmp(id, random_str) == 0)
+			sym = SYM_RANDOM;         //symbol is function "random"
+		else if (strcmp(id, print_str) == 0)
+			sym = SYM_PRINT;              //symbol is function "print"
 		else
 			sym = SYM_IDENTIFIER;   // symbol is an identifier
 	}
@@ -488,6 +493,26 @@ void factor(symset fsys)
 			 getsym();
 			 factor(fsys);
 			 gen(OPR, 0, OPR_NEG);
+		}
+		else if (sym == SYM_RANDOM) {
+			getsym();
+			if (sym == SYM_LPAREN) {
+				getsym();
+				if (sym == SYM_RPAREN) {   //����Ϊ��
+					gen(LIT, 0, 32767);
+					gen(OPR, 0, OPR_RAN);
+					getsym();
+				}
+				else {    //����Ϊ����, const, var, ����ʽ
+					set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);
+					expression(set);
+					destroyset(set);
+					if (sym == SYM_RPAREN) {
+						gen(OPR, 0, OPR_RAN);
+						getsym();
+					}
+				}
+			}
 		}
 		else if(sym==SYM_NOT){
 			 getsym();
@@ -886,6 +911,29 @@ void statement(symset fsys)
 		gen(JMP, 0, cx1);
 		code[cx2].a = cx;
 	}
+	else if (sym == SYM_PRINT) {
+		getsym();
+		if (sym == SYM_LPAREN) {
+			getsym();
+			if (sym == SYM_RPAREN) {   //����Ϊ��
+				gen(PRT, 0, 0);
+				getsym();
+			}
+			else {    //������Ϊ��
+				i = 0;
+				do {
+					if (i != 0)
+						getsym();
+					set = uniteset(createset(SYM_COMMA, SYM_NULL), fsys);
+					expression(set);
+					destroyset(set);
+					i++;
+				} while (sym == SYM_COMMA);
+				gen(PRT, 0, i);
+				getsym();
+			}
+		}
+	}//add by HuangXi    end
 	test(fsys, phi, 19);
 	//getsym();
 } // statement
@@ -1119,7 +1167,7 @@ void interpret()
 	int top;       // top of stack
 	int b;         // program, base, and top-stack register
 	instruction i; // instruction register
-
+	int j;
 	printf("Begin executing PL/0 program.\n");
 
 	pc = 0;
@@ -1205,6 +1253,9 @@ void interpret()
 				top--;
 				stack[top] = stack[top] || stack[top + 1];
 				break;
+			case OPR_RAN:
+				stack[top] = rand() % stack[top];
+				break;
 			} // switch
 			break;
 		case ADR:
@@ -1245,6 +1296,15 @@ void interpret()
 				pc = i.a;
 			top--;
 			break;
+		case PRT:
+			if (i.a == 0)     //�޲�������ӡ�س���
+				printf("\n");
+			else                //�в���
+				for (j = top-i.a+1; j <=top; j++) {
+					printf("%d ", stack[j]);
+				}
+				top-=i.a;
+			break;
 		} // switch
 		int i;
 		for(i=0;i<=top;i++){
@@ -1272,6 +1332,7 @@ void interpret()
 //////////////////////////////////////////////////////////////////////
 void main ()
 {
+	srand((int)time(NULL));
 	FILE* hbin;
 	char s[80];
 	int i;
@@ -1291,7 +1352,7 @@ void main ()
 	// create begin symbol sets
 	declbegsys = createset(SYM_CONST, SYM_VAR, SYM_PROCEDURE, SYM_NULL);
 	statbegsys = createset(SYM_BEGIN, SYM_CALL, SYM_IF, SYM_WHILE, SYM_NULL);
-	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS,SYM_NOT, SYM_NULL);
+	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS,SYM_NOT,SYM_RANDOM, SYM_NULL);
 
 	err = cc = cx = ll = 0; // initialize global variables
 	ch = ' ';
