@@ -1,10 +1,17 @@
 var a,b,ansx,ansy,c;
-procedure exgcd(z,&x,y);
-var &x1=x;
+procedure exgcd(a,b,&x,&y);
+var x1,y1;
 begin
-	x1:=3;
+	if b=0 then x:=1;
+	if b=0 then y:=0;
+	if b<>0 then call exgcd(b,a-(a/b)*b,x,y);
+	if b<>0 then x1:=x;
+	if b<>0 then x:=y;
+	if b<>0 then y:=x1-(a/b)*y;
 end;
 begin
-	ansx:=1;
-	call exgcd(1,ansx,2);
+	a:=25;
+	b:=15;
+	call exgcd(1+2,b,3,ansx);
+	c:=a*ansx+b*ansy;
 end.

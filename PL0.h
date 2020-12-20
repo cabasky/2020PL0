@@ -3,7 +3,7 @@
 #define NRW        13    // number of reserved words
 #define TXMAX      500    // length of identifier table
 #define MAXNUMLEN  14     // maximum number of digits in numbers
-#define NSYM       11     // maximum number of symbols in array ssym and csym
+#define NSYM       12     // maximum number of symbols in array ssym and csym
 #define MAXIDLEN   10     // length of identifiers
 
 #define MAXADDRESS 32767  // maximum address
@@ -50,14 +50,16 @@ enum symtype
 	SYM_BLOCKEXPLEND,
 	SYM_LINEEXPL,
 	SYM_GOTO,
-	SYM_LINETAG,
+	SYM_LABEL,
 	SYM_ADR,
 	SYM_AND,
 	SYM_OR,
 	SYM_NOT,
 	SYM_ELSE,
 	SYM_LSQ,
-	SYM_RSQ
+	SYM_RSQ,
+	SYM_RANDOM,
+	SYM_PRINT
 };
 
 enum idtype
@@ -67,7 +69,7 @@ enum idtype
 
 enum opcode
 {
-	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, STA, LOA, ADR
+	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, STA, LOA, ADR, PRT
 };
 
 enum oprcode
@@ -75,7 +77,8 @@ enum oprcode
 	OPR_RET, OPR_NEG, OPR_ADD, OPR_MIN,
 	OPR_MUL, OPR_DIV, OPR_ODD, OPR_EQU,
 	OPR_NEQ, OPR_LES, OPR_LEQ, OPR_GTR,
-	OPR_GEQ
+	OPR_GEQ, OPR_AND, OPR_OR,  OPR_NOT,
+	OPR_RAN
 };
 
 
@@ -153,7 +156,7 @@ int wsym[NRW + 1] =
 {
 	SYM_NULL, SYM_BEGIN, SYM_CALL, SYM_CONST, SYM_DO, SYM_END,
 	SYM_IF, SYM_ODD, SYM_PROCEDURE, SYM_THEN, SYM_VAR, SYM_WHILE,
-	SYM_GOTO,SYM_ELSE
+	SYM_LABEL,SYM_GOTO,SYM_ELSE
 };
 
 int ssym[NSYM + 1] =
@@ -168,10 +171,10 @@ char csym[NSYM + 1] =
 	' ', '+', '-', '(', ')', '=', ',', '.', ';', '[', ']', '!'
 };
 
-#define MAXINS   11
+#define MAXINS   12
 char* mnemonic[MAXINS] =
 {
-	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC","STA","LOA","ADR"
+	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC","STA","LOA","ADR","PRT"
 };
 
 typedef struct

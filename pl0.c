@@ -15,6 +15,7 @@ FILE * fpstack;
 //////////////////////////////////////////////////////////////////////
 // print error message.
 //test
+void orcondition(symset fsys);
 void listvar(){
 	for(int i=1;i<=8;i++){
 		printf("%d: %s\n",i,table[i].name);
@@ -424,9 +425,7 @@ void factor(symset fsys)
 	void expression(symset fsys);
 	int i;
 	symset set;
-	
 	test(facbegsys, fsys, 24); // The symbol can not be as the beginning of an expression.
-
 	if (inset(sym, facbegsys))
 	{
 		if (sym == SYM_IDENTIFIER)
@@ -472,7 +471,8 @@ void factor(symset fsys)
 		{
 			getsym();
 			set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);
-			expression(set);
+			//expression(set);
+			orcondition(set);
 			destroyset(set);
 			if (sym == SYM_RPAREN)
 			{
@@ -489,8 +489,15 @@ void factor(symset fsys)
 			 factor(fsys);
 			 gen(OPR, 0, OPR_NEG);
 		}
+		else if(sym==SYM_NOT){
+			 getsym();
+			 factor(fsys);
+			 gen(OPR, 0, OPR_NOT);
+		}
 		setinsert(fsys,SYM_COMMA);
 		setinsert(fsys,SYM_RPAREN);
+		setinsert(fsys,SYM_AND);
+		setinsert(fsys,SYM_OR);
 		test(fsys, createset(SYM_LPAREN, SYM_NULL), 23);
 	} // if
 } // factor
@@ -566,7 +573,7 @@ void condition(symset fsys)
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
-			error(20);
+			return;
 		}
 		else
 		{
@@ -599,6 +606,54 @@ void condition(symset fsys)
 } // condition
 
 void callProc(int procindex,symset fsys){
+	mask *mk=(mask*)&table[procindex];
+	int savedCx=cx,it,paramindex[20],pmnum=mk->level,erflag=0;
+	for(it=first[procindex];it;it=next[it])
+		paramindex[pmnum+1+((mask*)&globalParamList[it])->address]=it;
+	getsym();
+	if(sym!=SYM_LPAREN) erflag=1;
+	else{
+		for(it=1;it<=pmnum;it++){
+			getsym();
+			if(((mask*)&globalParamList[paramindex[it]])->kind==ID_ACTUAL){
+				if(sym==SYM_IDENTIFIER){
+					int key=position(id);
+					if(!key) erflag=1;
+					if(table[key].kind==ID_CONSTANT || table[key].kind==ID_PROCEDURE){
+						erflag=12;
+						error(12);
+					}
+					else if(table[key].kind==ID_VARIABLE){
+						gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
+					}
+					else if(table[key].kind==ID_ACTUAL){
+						gen(LOD,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
+					}
+				}
+				else erflag=1;
+				getsym();
+			}
+			else if(((mask*)&globalParamList[paramindex[it]])->kind==ID_VARIABLE){
+				orcondition(fsys);
+			}
+			if(it!=pmnum&&sym!=SYM_COMMA||it==pmnum&&sym!=SYM_RPAREN){
+				error(30);
+				erflag=1;
+				break;
+			}
+		}
+		if(erflag==1){
+			while(sym!=SYM_SEMICOLON) getsym();
+			error(30);
+			cx=savedCx;
+		}
+		if(!erflag){
+			gen(CAL,level,mk->address);
+			getsym();
+		}
+	}
+	
+	/*
 	mask *mk=(mask*)&table[procindex];
 	int savedCx=cx,it,paramindex[20],pmnum=mk->level,erflag=0;
 	for(it=first[procindex];it;it=next[it])
@@ -673,9 +728,24 @@ void callProc(int procindex,symset fsys){
 		if(!erflag){
 			gen(CAL,level,mk->address);
 		}
+	}*/
+}
+void andcondition(symset fsys){
+	condition(fsys);
+	while(sym==SYM_AND){
+		getsym();
+		condition(fsys);
+		gen(OPR,0,OPR_AND);
 	}
 }
-
+void orcondition(symset fsys){
+	andcondition(fsys);
+	while(sym==SYM_OR){
+		getsym();
+		andcondition(fsys);
+		gen(OPR,0,OPR_OR);
+	}
+}
 //////////////////////////////////////////////////////////////////////
 void statement(symset fsys)
 {
@@ -740,7 +810,6 @@ void statement(symset fsys)
 			{
 				error(15); // A constant or variable can not be called. 
 			}
-			getsym();
 		}
 	} 
 	else if (sym == SYM_IF)
@@ -748,7 +817,8 @@ void statement(symset fsys)
 		getsym();
 		set1 = createset(SYM_THEN, SYM_DO, SYM_NULL);
 		set = uniteset(set1, fsys);
-		condition(set);
+		//condition(set);
+		orcondition(set);
 		destroyset(set1);
 		destroyset(set);
 		if (sym == SYM_THEN)
@@ -799,7 +869,7 @@ void statement(symset fsys)
 		getsym();
 		set1 = createset(SYM_DO, SYM_NULL);
 		set = uniteset(set1, fsys);
-		condition(set);
+		orcondition(set);
 		destroyset(set1);
 		destroyset(set);
 		cx2 = cx;
@@ -1075,6 +1145,9 @@ void interpret()
 			case OPR_NEG:
 				stack[top] = -stack[top];
 				break;
+			case OPR_NOT:
+				stack[top] = !stack[top];
+				break;
 			case OPR_ADD:
 				top--;
 				stack[top] += stack[top + 1];
@@ -1123,6 +1196,14 @@ void interpret()
 			case OPR_LEQ:
 				top--;
 				stack[top] = stack[top] <= stack[top + 1];
+				break;
+			case OPR_AND:
+				top--;
+				stack[top] = stack[top] && stack[top + 1];
+				break;
+			case OPR_OR:
+				top--;
+				stack[top] = stack[top] || stack[top + 1];
 				break;
 			} // switch
 			break;
@@ -1210,7 +1291,7 @@ void main ()
 	// create begin symbol sets
 	declbegsys = createset(SYM_CONST, SYM_VAR, SYM_PROCEDURE, SYM_NULL);
 	statbegsys = createset(SYM_BEGIN, SYM_CALL, SYM_IF, SYM_WHILE, SYM_NULL);
-	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS, SYM_NULL);
+	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS,SYM_NOT, SYM_NULL);
 
 	err = cc = cx = ll = 0; // initialize global variables
 	ch = ' ';
