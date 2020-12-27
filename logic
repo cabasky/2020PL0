@@ -1,0 +1,12 @@
+getsym,sym=IF-THEN
+while sym in first(stat):
+    stat(fsys);
+sym
+    ENDIF:
+
+    ELSE:
+        while sym in first(stat):
+            stat(fsys);
+        sym
+            ENDIF:
+            error

@@ -17,8 +17,10 @@ FILE * fpstack;
 // print error message.
 //test
 void orcondition(symset fsys);
+//void FindAddress(mask*mk, symset fsys);
+int position(char *id);
 void listvar(){
-	for(int i=1;i<=8;i++){
+	for(int i=1;i<=10;i++){
 		printf("%d: %s\n",i,table[i].name);
 		printf("kind %d ,level %d ,adr %d\n",table[i].kind,((mask*)&table[i])->level,((mask*)&table[i])->address);
 	}
@@ -309,7 +311,65 @@ void enter(int kind,char *eid)
 		break;
 	} // switch
 } // enter
-
+int FindAddressConst(int tpos,int flag)
+{
+	int dim,ret;
+	getsym();
+	if (sym == SYM_NUMBER) dim=num;
+	else if(sym==SYM_IDENTIFIER){
+		int idx=position(id);
+		if(idx&&table[idx].kind==ID_CONSTANT) dim=table[idx].value;
+		else error(0);
+	}
+	getsym();
+	if (sym == SYM_RSQ)
+	{
+		getsym();
+		if (sym == SYM_LSQ) ret=dim*FindAddressConst(tpos,1);
+		else ret=dim;
+	}
+	else error(31);
+	if(flag) adddim(tpos,ret);
+	return ret;
+}
+int findaddress(symset fsys,int dims){
+	getsym();
+	orcondition(fsys);
+	if(dims){
+		gen(LIT,0,dimList[dims]);
+		gen(OPR,0,OPR_MUL);
+	}
+	gen(OPR,0,OPR_ADD);
+	//getsym();
+	if(sym==SYM_RSQ){
+		getsym();
+		if(sym==SYM_LSQ){
+			findaddress(fsys,nextdim[dims]);
+		}
+	}
+	else error(31);
+}
+void enterArray(char *eid)
+{
+	mask* mk;
+	tx++;
+	strcpy(table[tx].name, eid);
+	table[tx].kind = ID_VARIABLE;
+	mk = (mask*)&table[tx];
+	mk->level = level;
+	mk->address=dx;
+	firstdim[tx]=0;
+	adddim(tx,1);
+	int ofs=FindAddressConst(tx,0);
+	int it;
+	printf("testarr:\n");
+	for(it=firstdim[tx];it;it=nextdim[it]) printf("%d ",dimList[it]);
+	printf("\n");
+	dx+=ofs;
+}
+void genoffset(symset fsys,int arrayid){
+	findaddress(fsys,firstdim[arrayid]);
+}
 //////////////////////////////////////////////////////////////////////
 // locates identifier in symbol table.
 int position(char* id)
@@ -354,7 +414,7 @@ void constdeclaration()
 } // constdeclaration
 
 //////////////////////////////////////////////////////////////////////
-void vardeclaration(int paranum)
+void vardeclaration(symset fsys,int paranum)
 {
 	int actualflag=0;
 	if(sym==SYM_ADR){
@@ -372,38 +432,41 @@ void vardeclaration(int paranum)
 				if(sym==SYM_IDENTIFIER){
 					int pos=position(id);
 					if(!pos||((mask*)(&table[pos]))->kind==ID_CONSTANT||((mask*)(&table[pos]))->kind==ID_PROCEDURE) error(27);
-					if(!redefinationcheck(tmp,paranum)){
 						enter(ID_ACTUAL,tmp);
-						if(((mask*)(&table[pos]))->kind==ID_VARIABLE)
-							reftable[tx]=pos;
-						else if(((mask*)(&table[pos]))->kind==ID_ACTUAL){
-							if(((mask*)(&table[pos]))->address<0) reftable[tx]=pos;
-							else reftable[tx]=reftable[pos];
+						if(((mask*)(&table[pos]))->kind==ID_VARIABLE){
+							getsym();
+							if(sym==SYM_LSQ){
+								if(((mask*)&table[pos])->address<0) gen(LOD,0,((mask*)(&table[pos]))->address);
+								else gen(ADR,level-((mask*)(&table[pos]))->level,((mask*)(&table[pos]))->address);
+								findaddress(fsys,firstdim[pos]);
+							}
+							else gen(ADR,level-((mask*)(&table[pos]))->level,((mask*)(&table[pos]))->address);
 						}
-					}
-					else{
-						error(26);
-						getsym();
-					}
+						else if(((mask*)(&table[pos]))->kind==ID_ACTUAL){
+							gen(LOD,0,((mask*)(&table[pos]))->address);
+							getsym();
+						}
+						gen(STO,0,((mask*)&table[tx])->address);
 				}
 				else{
 					error(27);
-					//while(!sym==SYM_COMMA&&!sym==SYM_SEMICOLON) getsym(); 
 				}
 			}
 			else{
 				error(27);
-				//while(!sym==SYM_COMMA&&!sym==SYM_SEMICOLON) getsym(); 
 			}
 		}
 		else{
-			if(!redefinationcheck(id,paranum)) enter(ID_VARIABLE,id);
+			if(!redefinationcheck(id,paranum)){
+				getsym();
+				if(sym==SYM_LSQ) enterArray(id);
+				else enter(ID_VARIABLE,id);
+			}
 			else{
 				error(26);
 				getsym();
 			}
 		}
-		getsym();
 	}
 	else
 	{
@@ -424,7 +487,6 @@ void listcode(int from, int to)
 	printf("\n");
 } // listcode
 
-//////////////////////////////////////////////////////////////////////
 void factor(symset fsys)
 {
 	void expression(symset fsys);
@@ -446,21 +508,31 @@ void factor(symset fsys)
 					mask* mk;
 				case ID_CONSTANT:
 					gen(LIT, 0, table[i].value);
+					getsym();
 					break;
 				case ID_VARIABLE:
 					mk = (mask*) &table[i];
-					gen(LOD, level - mk->level, mk->address);
+					getsym();
+					if(sym==SYM_LSQ){
+						gen(ADR,level-mk->level,mk->address);
+						genoffset(fsys,i);
+						gen(LOA,-1,0);
+					}
+					else{
+						gen(LOD, level - mk->level, mk->address);
+					}
 					break;
 				case ID_ACTUAL:
 					mk=(mask*)&table[i];
 					gen(LOA,level-mk->level,mk->address);
+					getsym();
 					break;
 				case ID_PROCEDURE:
 					error(21); // Procedure identifier can not be in an expression.
 					break;
 				} // switch
 			}
-			getsym();
+			//getsym();
 		}
 		else if (sym == SYM_NUMBER)
 		{
@@ -523,6 +595,7 @@ void factor(symset fsys)
 		setinsert(fsys,SYM_RPAREN);
 		setinsert(fsys,SYM_AND);
 		setinsert(fsys,SYM_OR);
+		setinsert(fsys,SYM_RSQ);
 		test(fsys, createset(SYM_LPAREN, SYM_NULL), 23);
 	} // if
 } // factor
@@ -578,7 +651,6 @@ void expression(symset fsys)
 
 	destroyset(set);
 } // expression
-
 //////////////////////////////////////////////////////////////////////
 void condition(symset fsys)
 {
@@ -649,17 +721,41 @@ void callProc(int procindex,symset fsys){
 						error(12);
 					}
 					else if(table[key].kind==ID_VARIABLE){
-						gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
+						getsym();
+						if(sym==SYM_LSQ){
+							if(((mask*)&table[key])->address<0) gen(LOD,0,((mask*)&table[key])->address);
+							else gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
+							findaddress(fsys,firstdim[key]);
+						}
+						else gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
 					}
 					else if(table[key].kind==ID_ACTUAL){
 						gen(LOD,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
+						getsym();
 					}
 				}
 				else erflag=1;
-				getsym();
 			}
 			else if(((mask*)&globalParamList[paramindex[it]])->kind==ID_VARIABLE){
-				orcondition(fsys);
+				int idx=dimidlist[paramindex[it]];
+				printf("test0: %d %s %d\n",
+				idx,
+				((mask*)&globalParamList[paramindex[it]])->name,
+				firstdim[idx]
+				);
+				printf("test4 %s\n",id);
+				if(firstdim[idx]){
+					if(sym==SYM_IDENTIFIER){
+						int idx2=position(id);
+						printf("test5:%d %s %d\n",idx2,table[idx2].name,firstdim[idx2]);
+						if(idx2&&table[idx2].kind==ID_VARIABLE&&firstdim[idx2]){
+							if(((mask*)&table[idx2])->address<0) gen(LOD,0,((mask*)&table[idx2])->address);
+							else gen(ADR,level-((mask*)&table[idx2])->level,((mask*)&table[idx2])->address);
+						}
+					}
+					getsym();
+				}
+				else orcondition(fsys);
 			}
 			if(it!=pmnum&&sym!=SYM_COMMA||it==pmnum&&sym!=SYM_RPAREN){
 				error(30);
@@ -790,6 +886,14 @@ void statement(symset fsys)
 			i = 0;
 		}
 		getsym();
+		int arrayflag=0;
+		if(sym==SYM_LSQ){
+			mk=(mask*)(&table[i]);
+			if(mk->address<0) gen(LOD,0,mk->address);
+			else gen(ADR,level-mk->level,mk->address);
+			genoffset(fsys,i);
+			arrayflag=1;
+		}
 		if (sym == SYM_BECOMES)
 		{
 			getsym();
@@ -798,14 +902,20 @@ void statement(symset fsys)
 		{
 			error(13); // ':=' expected.
 		}
+		//printf("test1 %d\n",i);
 		expression(fsys);
 		mk = (mask*) &table[i];
 		if (i)
 		{
-			if(table[i].kind==ID_VARIABLE)
-				gen(STO, level - mk->level, mk->address);
-			else if (table[i].kind==ID_ACTUAL){
-				gen(STA,level-mk->level,mk->address);
+			if(arrayflag){
+				gen(OPR,0,OPR_MOV);
+			}
+			else{
+				if(table[i].kind==ID_VARIABLE)
+					gen(STO, level - mk->level, mk->address);
+				else if (table[i].kind==ID_ACTUAL){
+					gen(STA,level-mk->level,mk->address);
+				}
 			}
 		}
 	}
@@ -940,13 +1050,21 @@ void statement(symset fsys)
 
 int paramlistInit(int procindex){
 	int paranum=0,ads=0;
+	char eid[20];
 	do{
 		getsym();
-		int actualflag=0;
-		if(sym==SYM_IDENTIFIER) actualflag=0;
+		int actualflag=0,arrayflag=0;
+		if(sym==SYM_IDENTIFIER){
+			actualflag=0;
+			getsym();
+			if(sym==SYM_LSQ) arrayflag=1;
+		}
 		else if(sym==SYM_ADR){
 			getsym();
-			if(sym==SYM_IDENTIFIER) actualflag=1;
+			if(sym==SYM_IDENTIFIER){
+				actualflag=1;
+				getsym();
+			}
 			else{
 				error(28);
 			}
@@ -954,17 +1072,25 @@ int paramlistInit(int procindex){
 		if(!redefinationcheck(id,0)){
 			paranum++;
 			tx++;
-			if(!actualflag)
+			if(actualflag) table[tx].kind=ID_ACTUAL;
+			else{
 				table[tx].kind=ID_VARIABLE;
-			else if(actualflag)
-				table[tx].kind=ID_ACTUAL;
-			strcpy(table[tx].name,id);
+				if(arrayflag) {
+					strcpy(eid,id);
+					firstdim[tx]=0;
+					//printf("test2%d\n",firstdim[tx]);
+					adddim(tx,1);
+					FindAddressConst(dimid+1,1);
+					//printf("test2%d\n",firstdim[tx]);
+				}
+			}
+			strcpy(table[tx].name,eid);
 			((mask*)&table[tx])->level=level;
 			((mask*)&table[tx])->address=ads++;
 			addparameter(procindex);
 			globalParamList[totalparam]=*((mask*)&table[tx]);
+			if(arrayflag) dimidlist[totalparam]=++dimid;
 		}
-		getsym();
 		if(sym!=SYM_RPAREN&&sym!=SYM_COMMA){
 			error(29);
 		}
@@ -992,7 +1118,7 @@ void block(symset fsys,int procindex)
 	block_dx = dx;
 	mk = (mask*) &table[procindex];
 	mk->address = cx;
-	gen(JMP, 0, 0);
+	gen(INT,0,0);
 	if (level > MAXLEVEL)
 	{
 		error(32); // There are too many levels.
@@ -1037,11 +1163,11 @@ void block(symset fsys,int procindex)
 			getsym();
 			do
 			{
-				vardeclaration(mk->level);
+				vardeclaration(fsys,mk->level);
 				while (sym == SYM_COMMA)
 				{
 					getsym();
-					vardeclaration(mk->level);
+					vardeclaration(fsys,mk->level);
 				}
 				if (sym == SYM_SEMICOLON)
 				{
@@ -1055,8 +1181,13 @@ void block(symset fsys,int procindex)
 			while (sym == SYM_IDENTIFIER);
 		} // if
 		block_dx = dx; //save dx before handling procedure call!
+		int jmpcx=0;
 		while (sym == SYM_PROCEDURE)
 		{ // procedure declarations
+			if(!jmpcx){
+				jmpcx=cx;
+				gen(JMP,0,0);
+			}
 			getsym();
 			if (sym == SYM_IDENTIFIER)
 			{
@@ -1097,7 +1228,7 @@ void block(symset fsys,int procindex)
 			if (sym == SYM_SEMICOLON)
 			{
 				getsym();
-				set1 = createset(SYM_IDENTIFIER, SYM_PROCEDURE, SYM_NULL);
+				set1 = createset(SYM_VAR,SYM_IDENTIFIER, SYM_PROCEDURE, SYM_NULL);
 				set = uniteset(statbegsys, set1);
 				test(set, fsys, 6);
 				destroyset(set1);
@@ -1108,20 +1239,22 @@ void block(symset fsys,int procindex)
 				error(5); // Missing ',' or ';'.
 			}
 		} // while
+		code[jmpcx].a=cx;
 		dx = block_dx; //restore dx after handling procedure call!
-		set1 = createset(SYM_IDENTIFIER, SYM_NULL);
+		set1 = createset(SYM_VAR,SYM_IDENTIFIER, SYM_NULL);
 		set = uniteset(statbegsys, set1);
 		test(set, declbegsys, 7);
 		destroyset(set1);
 		destroyset(set);
 	}
 	while (inset(sym, declbegsys));
-
+	code[mk->address].a=dx;
+	/*
 	code[mk->address].a = cx;
-	mk->address = cx;
+	mk->address = cx;*/
 	cx0 = cx;
-	gen(INT, 0, block_dx);
 	int it;
+	/*
 	for(it=procindex+1;it<=tx;it++){
 		if(table[it].kind==ID_ACTUAL){
 			if(((mask*)&table[it])->address<0) continue;
@@ -1135,7 +1268,7 @@ void block(symset fsys,int procindex)
 				gen(STO,0,((mask*)&table[it])->address);
 			}
 		}
-	}
+	}*/
 	
 	set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
 	set = uniteset(set1, fsys);
@@ -1172,7 +1305,7 @@ void interpret()
 
 	pc = 0;
 	b = 1;
-	top = 3;
+	top = 0;
 	stack[1] = stack[2] = stack[3] = 0;
 	do
 	{
@@ -1256,6 +1389,10 @@ void interpret()
 			case OPR_RAN:
 				stack[top] = rand() % stack[top];
 				break;
+			case OPR_MOV:
+				top--;
+				stack[stack[top+i.l]]=stack[top+1];
+				top--;
 			} // switch
 			break;
 		case ADR:
@@ -1265,7 +1402,8 @@ void interpret()
 			stack[++top] = stack[base(stack, b, i.l) + i.a];
 			break;
 		case LOA:
-			stack[++top] = stack[stack[base(stack, b, i.l)+i.a]];
+			if(i.l==-1) stack[top]=stack[stack[top+i.a]];
+			else stack[++top] = stack[stack[base(stack, b, i.l)+i.a]];
 			break;
 		case STO:
 			stack[base(stack, b, i.l) + i.a] = stack[top];
@@ -1298,33 +1436,33 @@ void interpret()
 			break;
 		case PRT:
 			if (i.a == 0)     //�޲�������ӡ�س���
-				printf("\n");
+				sprintf(output+strlen(output),"\n");
 			else                //�в���
 				for (j = top-i.a+1; j <=top; j++) {
-					printf("%d ", stack[j]);
+					sprintf(output+strlen(output),"%d ", stack[j]);
 				}
 				top-=i.a;
 			break;
 		} // switch
-		int i;
-		for(i=0;i<=top;i++){
-			fprintf(fpstack,"%4d",stack[i]);
+		int it;
+		for(it=0;it<=top;it++){
+			fprintf(fpstack,"%4d",stack[it]);
 		}
 		fprintf(fpstack,"\n");
-		for(i=0;i<=top;i++){
-			if(i<10) fprintf(fpstack,"---");
-			else if(i<100) fprintf(fpstack,"--");
-			else if(i<1000) fprintf(fpstack,"-");
-			fprintf(fpstack,"%d",i);
+		for(it=0;it<=top;it++){
+			if(it<10) fprintf(fpstack,"---");
+			else if(it<100) fprintf(fpstack,"--");
+			else if(it<1000) fprintf(fpstack,"-");
+			fprintf(fpstack,"%d",it);
 		}
 		fprintf(fpstack,"\n");
-		for(i=0;i<b;i++){
+		for(it=0;it<b;it++){
 			fprintf(fpstack,"    ");
 		}
 		fprintf(fpstack,"   b\n\n");
 	}
 	while (pc);
-
+	
 	printf("End executing PL/0 program.\n");
 } // interpret
  
@@ -1382,13 +1520,14 @@ void main ()
 			fwrite(&code[i], sizeof(instruction), 1, hbin);
 		fclose(hbin);
 	}
+	listvar();
 	fpstack=fopen("stacktest","w");
 	if (err == 0)
 		interpret();
 	else
 		printf("There are %d error(s) in PL/0 program.\n", err);
 	listcode(0, cx);
-	listvar();
+	printf("output:\n%s\n",output);
 	fclose(fpstack);
 } // main
 

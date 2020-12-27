@@ -14,6 +14,10 @@
 
 #define STACKSIZE  1000   // maximum storage
 
+char output[MAXADDRESS];
+int dimid=400;
+int dimidlist[TXMAX];
+
 enum symtype
 {
 	SYM_NULL,
@@ -78,7 +82,7 @@ enum oprcode
 	OPR_MUL, OPR_DIV, OPR_ODD, OPR_EQU,
 	OPR_NEQ, OPR_LES, OPR_LEQ, OPR_GTR,
 	OPR_GEQ, OPR_AND, OPR_OR,  OPR_NOT,
-	OPR_RAN
+	OPR_RAN, OPR_MOV
 };
 
 
@@ -203,6 +207,14 @@ void addparameter(int prcd){
 	next[++totalparam]=first[prcd];
 	first[prcd]=totalparam;
 }
+int dimList[TXMAX+10];
+short nextdim[TXMAX+10],totaldim=0,firstdim[TXMAX];
+void adddim(int arrayid,int dimnum){
+	dimList[++totaldim]=dimnum;
+	nextdim[totaldim]=firstdim[arrayid];
+	firstdim[arrayid]=totaldim;
+}
+
 
 FILE* infile;
 

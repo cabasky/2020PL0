@@ -1,0 +1,10 @@
+var a,b,ansx,ansy,c;
+procedure func(n,m);
+begin
+	print(n,m);
+	print();
+	if n<>1 then call func(n-1,random(10*20));
+end;
+begin
+	call func(10,20)
+end.

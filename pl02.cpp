@@ -13,7 +13,7 @@
 
 //////////////////////////////////////////////////////////////////////
 // print error message.
-void error(int n)//�����ĺ�����n�Ǵ�����Ϣ�ı��,err_msg�Ǵ�Ŵ�����Ϣ������
+void error(int n)//�����ĺ�����n�Ǵ�����Ϣ�ı��?,err_msg�Ǵ�Ŵ�����Ϣ������?
 {
 	int i;
 
@@ -28,7 +28,7 @@ void error(int n)//�����ĺ�����n�Ǵ�����Ϣ�ı�
 //////////////////////////////////////////////////////////////////////
 void getch(void)//��ȡ�ַ��������س���tab���ո�
 {
-	if (cc == ll)//cc��character count,�Ѿ�������ַ�����ll��linelength���еĳ���,ch,���ڶ�����Ǹ��ַ�
+	if (cc == ll)//cc��character count,�Ѿ�������ַ�����ll��linelength���еĳ���,ch,���ڶ�����Ǹ��ַ�?
 	{
 		if (feof(infile))
 		{
@@ -40,7 +40,7 @@ void getch(void)//��ȡ�ַ��������س���tab���ո
 		while ( (!feof(infile)) // added & modified by alex 01-02-09
 			    && ((ch = getc(infile)) != '\n'))
 		{
-			printf("%c", ch);//����ǻس����ʹ�ӡ
+			printf("%c", ch);//����ǻس����ʹ��?
 			line[++ll] = ch;//line[],��Ŷ�����ַ�������
 		} // while
 		printf("\n");
@@ -54,12 +54,12 @@ void getch(void)//��ȡ�ַ��������س���tab���ո
 void getsym(void)
 {
 	int i, k;
-	char a[MAXIDLEN + 1];//��ʱ��ŵ�����
+	char a[MAXIDLEN + 1];//��ʱ��ŵ�����?
 
 	while (ch == ' '||ch == '\t')
 		getch();
 
-	if (isalpha(ch))//���ch��һ��Ӣ����ĸ�������Ƕ��뱣���ֻ�id��������Ӣ����ĸ��ͷ�����������ֻ�Ӣ����ĸ���
+	if (isalpha(ch))//���ch��һ��Ӣ����ĸ�������Ƕ��뱣���ֻ�id��������Ӣ����ĸ��ͷ�����������ֻ�Ӣ����ĸ���?
 	{ // symbol is a reserved word or an identifier.
 		k = 0;
 		do
@@ -73,7 +73,7 @@ void getsym(void)
 		strcpy(id, a);//��a�е����ݸ��Ƶ�id�У�id[]����������id���ַ�����
 		word[0] = id;
 		i = NRW;//NRW��number of reserved words�������ֵ�����
-		while (strcmp(id, word[i--]));//word�Ǵ�ű����ֵ�
+		while (strcmp(id, word[i--]));//word�Ǵ�ű����ֵ�?
 		if (++i)
 			sym = wsym[i]; // symbol is a reserved word
 		else
@@ -106,7 +106,7 @@ void getsym(void)
 			sym = SYM_NULL;       // illegal?
 		}
 	}
-	else if (ch == '>')//���ֱȽ������
+	else if (ch == '>')//���ֱȽ������?
 	{
 		getch();
 		if (ch == '=')
@@ -141,14 +141,14 @@ void getsym(void)
 	else if (ch == '[')
 	{
 		getch();
-		sym = SYM_ARRAYLEFT;
+		sym = SYM_LSQ;
 	}
 	else if (ch == ']')
 	{
 		getch();
-		sym = SYM_ARRAYRIGHT;
+		sym = SYM_RSQ;
 	}
-	//��������޸�
+	//��������޸�?
 	else//��Ŀ�������ֱ���ڴ�ŵ�Ŀ�����������csym[]�б�������
 	{ // other tokens
 		i = NSYM;
@@ -201,7 +201,7 @@ void test(symset s1, symset s2, int n)
 int dx;  // data allocation index
 
 // enter object(constant, variable or procedre) into table.
-void enter(int kind)//table�Ǵ�ų��������������̵����飬kind�Ǵ�ŵ����ݵ�����
+void enter(int kind)//table�Ǵ�ų��������������̵����飬kind�Ǵ�ŵ����ݵ�����?
 {
 	mask* mk;
 	tx++;//tx��table�����ڴ�����λ��
@@ -240,10 +240,10 @@ void FindAddressConst(mask*mk)
 		space = space * table[j].value + num;
 		j++;
 		getsym();
-		if (sym == SYM_ARRAYRIGHT)
+		if (sym == SYM_RSQ)
 		{
 			getsym();
-			if (sym == SYM_ARRAYLEFT)
+			if (sym == SYM_LSQ)
 				FindAddressConst(mk);//�����ǵݹ飬������ά����
 			mk->address += space;
 			space = 0;
@@ -310,7 +310,7 @@ void vardeclaration(void)//��������
 	{
 		//�������޸�
 		getsym();
-		if (sym == SYM_ARRAYLEFT) enterArray();
+		if (sym == SYM_LSQ) enterArray();
 		else enter(ID_VARIABLE);
 	}
 	else
@@ -364,7 +364,7 @@ void factor(symset fsys)//�ֽ�һ��symbol����
 				case ID_VARIABLE:
 					mk = (mask*) &table[i];
 					getsym();
-					if (sym = SYM_ARRAYLEFT)FindAddress(mk,fsys);
+					if (sym = SYM_LSQ)FindAddress(mk,fsys);
 					gen(LOD, level - mk->level, mk->address);
 					break;
 				case ID_PROCEDURE:
@@ -388,7 +388,7 @@ void factor(symset fsys)//�ֽ�һ��symbol����
 		else if (sym == SYM_LPAREN)//LPAREN��������
 		{
 			getsym();
-			set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);//set����������֮��ı���ʽ
+			set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);//set����������֮��ı����?
 			expression(set);//�ȼ��������ڵ�
 			destroyset(set);
 			if (sym == SYM_RPAREN)
@@ -448,7 +448,7 @@ void expression(symset fsys)
 	{
 		addop = sym;
 		getsym();
-		term(set);//�ȳ˳���Ӽ�
+		term(set);//�ȳ˳���Ӽ�?
 		if (addop == SYM_PLUS)
 		{
 			gen(OPR, 0, OPR_ADD);
@@ -472,10 +472,10 @@ void FindAddress(mask*mk, symset fsys)
 		space = space * table[j].value + num;
 		j++;
 		getsym();
-		if (sym == SYM_ARRAYRIGHT)
+		if (sym == SYM_RSQ)
 		{
 			getsym();
-			if (sym == SYM_ARRAYLEFT)
+			if (sym == SYM_LSQ)
 				FindAddress(mk, fsys);//�����ǵݹ飬������ά����
 			mk->address += space;
 			space = 0;
@@ -491,10 +491,10 @@ void FindAddress(mask*mk, symset fsys)
 		gen(STO, 0, i);
 		space = space * table[j].value + i;
 		getsym();
-		if (sym == SYM_ARRAYRIGHT)
+		if (sym == SYM_RSQ)
 		{
 			getsym();
-			if (sym == SYM_ARRAYLEFT)
+			if (sym == SYM_LSQ)
 				FindAddress(mk, fsys);
 			mk->address -= space;
 			space = 0;
@@ -699,7 +699,7 @@ void block(symset fsys)//������
 	int savedTx;
 	symset set1, set;
 
-	dx = 3;//����Ŀռ�
+	dx = 3;//����Ŀռ�?
 	block_dx = dx;//block_dx ���±����dx��λ��
 	mk = (mask*) &table[tx];
 	mk->address = cx;//���ڴ�����ָ�
@@ -778,12 +778,12 @@ void block(symset fsys)//������
 			{
 				error(5); // Missing ',' or ';'.
 			}
-			//����һ��ĳ�����
+			//����һ��ĳ�����?
 			level++;
 			savedTx = tx;
 			set1 = createset(SYM_SEMICOLON, SYM_NULL);
 			set = uniteset(set1, fsys);
-			block(set);//�ݹ����
+			block(set);//�ݹ����?
 			destroyset(set1);
 			destroyset(set);
 			tx = savedTx;
