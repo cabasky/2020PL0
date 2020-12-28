@@ -11,6 +11,7 @@
 
 #include "PL0.h"
 #include "set.c"
+#include "label.h"
 
 FILE * fpstack;
 //////////////////////////////////////////////////////////////////////
@@ -136,7 +137,7 @@ void getsym(void)
 		}
 		else
 		{
-			sym = SYM_NULL;       // illegal?
+			sym = SYM_LABELEND;       // illegal?
 		}
 	}
 	else if (ch == '>')
@@ -511,7 +512,8 @@ void factor(symset fsys)
 					mk = (mask*) &table[i];
 					getsym();
 					if(sym==SYM_LSQ){
-						gen(ADR,level-mk->level,mk->address);
+						if(mk->address<0) gen(LOD,level-mk->level,mk->address);
+						else gen(ADR,level-mk->level,mk->address);
 						genoffset(fsys,i);
 						gen(LOA,-1,0);
 					}
@@ -735,7 +737,6 @@ void callProc(int procindex,symset fsys){
 			}
 			else if(((mask*)&globalParamList[paramindex[it]])->kind==ID_VARIABLE){
 				int idx=dimidlist[paramindex[it]];
-				printf("test4 %s\n",id);
 				if(firstdim[idx]){
 					if(sym==SYM_IDENTIFIER){
 						int idx2=position(id);
@@ -869,7 +870,22 @@ void statement(symset fsys)
 		mask* mk;
 		if (! (i = position(id)))
 		{
-			error(11); // Undeclared identifier.
+			int lidx=labelpos(id);
+			if(!lidx){
+				char eid[20];
+				strcpy(eid,id);
+				getsym();
+				if(sym==SYM_LABELEND){
+					getsym();
+					enterlabel(eid,cx);
+					labelstatem=1;
+					return;
+				}
+				else{
+					error(11);
+				}
+			}
+			//error(11); // Undeclared identifier.
 		}
 		else if (table[i].kind != ID_VARIABLE&&table[i].kind != ID_ACTUAL)
 		{
@@ -957,8 +973,19 @@ void statement(symset fsys)
 		}
 		cx1 = cx;
 		gen(JPC, 0, 0);
+		statement(fsys);
+		code[cx1].a = cx;
+		getsym();
+		if(sym==SYM_ELSE){
+			getsym();
+			int cx2=cx;
+			gen(JMP, 0, 0);
+			code[cx1].a = cx;
 			statement(fsys);
-		code[cx1].a = cx;	
+			code[cx2].a=cx;
+		}
+		elsestatem=1;
+		return;
 	}
 	else if (sym == SYM_BEGIN)
 	{ // block
@@ -966,11 +993,17 @@ void statement(symset fsys)
 		set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
 		set = uniteset(set1, fsys);
 		statement(set);
-		while (sym == SYM_SEMICOLON || inset(sym, statbegsys))
+		while (sym == SYM_SEMICOLON || inset(sym, statbegsys)||labelstatem||elsestatem)
 		{
 			if (sym == SYM_SEMICOLON)
 			{
 				getsym();
+			}
+			else if(labelstatem){
+				labelstatem=0;
+			}
+			else if(elsestatem){
+				elsestatem=0;
 			}
 			else
 			{
@@ -1034,7 +1067,17 @@ void statement(symset fsys)
 				getsym();
 			}
 		}
-	}//add by HuangXi    end
+	}
+	else if (sym==SYM_GOTO){
+		getsym();
+		if(sym==SYM_IDENTIFIER){
+			entergoto(id,cx);
+			gen(JMP,0,0);
+			getsym();
+		}
+		else error(32);
+	}
+	//add by HuangXi    end
 	test(fsys, phi, 19);
 	//getsym();
 } // statement
@@ -1063,7 +1106,6 @@ int paramlistInit(int procindex){
 			}
 		}
 		if(!redefinationcheck(id,0)){
-			printf("test4%s\n",id);
 			paranum++;
 			tx++;
 			if(actualflag) table[tx].kind=ID_ACTUAL;
@@ -1459,7 +1501,17 @@ void interpret()
 	printf("End executing PL/0 program.\n");
 } // interpret
  
-
+void gotobackpatch(){
+	int i;
+	for(i=1;i<=gx;i++){
+		int lidx=labelpos(gtlist[i].name);
+		//printf("test5 %s %d \n",gtlist[g])
+		if(lidx){
+			code[gtlist[i].cx].a=ltable[lidx].cx;
+		}
+		else error(30);
+	}
+}
 //////////////////////////////////////////////////////////////////////
 void main ()
 {
@@ -1506,6 +1558,7 @@ void main ()
 
 	if (sym != SYM_PERIOD)
 		error(9); // '.' expected.
+	gotobackpatch();
 	if (err == 0)
 	{
 		hbin = fopen("hbin.txt", "w");
@@ -1520,6 +1573,8 @@ void main ()
 	else
 		printf("There are %d error(s) in PL/0 program.\n", err);
 	listcode(0, cx);
+	listlabel();
+	listgt();
 	printf("output:\n%s\n",output);
 	fclose(fpstack);
 } // main

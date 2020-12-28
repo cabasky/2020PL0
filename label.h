@@ -19,3 +19,20 @@ void enterlabel(char *lid,char codex){
     ltable[++lx].cx=codex;
     strcpy(ltable[lx].name,lid);
 }
+void entergoto(char *gid,char codex){
+    gtlist[++gx].cx=codex;
+    strcpy(gtlist[gx].name,gid);
+}
+void listlabel(){
+    int i;
+    for(i=1;i<=lx;i++){
+        printf("%d: %s %d\n",i,ltable[i].name,ltable[i].cx);
+    }
+}
+
+void listgt(){
+    int i;
+    for(i=1;i<=gx;i++){
+        printf("%d: %s %d\n",i,gtlist[i].name,gtlist[i].cx);
+    }
+}

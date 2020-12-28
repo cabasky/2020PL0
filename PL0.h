@@ -17,6 +17,7 @@
 char output[MAXADDRESS];
 int dimid=400;
 int dimidlist[TXMAX];
+int elsestatem;
 
 enum symtype
 {
@@ -63,7 +64,8 @@ enum symtype
 	SYM_LSQ,
 	SYM_RSQ,
 	SYM_RANDOM,
-	SYM_PRINT
+	SYM_PRINT,
+	SYM_LABELEND
 };
 
 enum idtype
