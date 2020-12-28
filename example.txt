@@ -1,19 +1,13 @@
 const N = 5;
 
-var i,j,p[N];
+var i,j,a[N];
 
-procedure insert(a[N]);
-var i,j,v;
-begin 
-	a[3]:=10;
-end;
-procedure insert1(a[N]);
-var i,j,v;
-begin 
-	a[4]:=10;
-end;
+procedure ts(p[N],n,&x);
 begin
-	call insert(p);
-	call insert1(p);
-	print(p[2],p[3],p[4]);
+ if(n>1) then p[n]:=n;
+ if(n>1) then call ts(p,n-1,x);
+end;
+
+begin
+ call ts(a,4,i);
 end.

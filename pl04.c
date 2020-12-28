@@ -7,25 +7,36 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
 
 #include "PL0.h"
-#include "set.c"
+#include "set.h"
 
-FILE * fpstack;
 //////////////////////////////////////////////////////////////////////
+
+
+
+//修改部分
+
+//声明的 label的数目。 
+int labeltotal = 0;
+
+//程序中调用 goto 的数目
+int gotototal = 0;
+
+//存放 label 的标识， 最多存放 10 个，  
+int labelnum[10];
+
+//存放 label 跳转地址
+int labelcx[10000];
+
+// gotonum[i][0]存放 goto 语句对应的 label 值
+int labelbool[10000];
+
+//
+int gotonum[10][2];
+
+
 // print error message.
-//test
-void orcondition(symset fsys);
-//void FindAddress(mask*mk, symset fsys);
-int position(char *id);
-void listvar(){
-	for(int i=1;i<=10;i++){
-		printf("%d: %s\n",i,table[i].name);
-		printf("kind %d ,level %d ,adr %d\n",table[i].kind,((mask*)&table[i])->level,((mask*)&table[i])->address);
-	}
-	puts("");
-}
 void error(int n)
 {
 	int i;
@@ -62,28 +73,12 @@ void getch(void)
 	ch = line[++cc];
 } // getch
 
-//skip the block explnation
-void blockExplanation(){
-	int status=0;
-	do{
-		getch();
-		if(status==0){
-			if(ch=='*') status=1;
-		}
-		else if(status==1){
-			if(ch=='/') status=2;
-			else status=0;
-		}
-	}while(status!=2);
-	getch();
-}
-
 //////////////////////////////////////////////////////////////////////
 // gets a symbol from input stream.
 void getsym(void)
 {
 	int i, k;
-	char a[MAXIDLEN + 1],random_str[7] = "random", print_str[6] = "print";
+	char a[MAXIDLEN + 1];
 
 	while (ch == ' '||ch == '\t')
 		getch();
@@ -105,10 +100,6 @@ void getsym(void)
 		while (strcmp(id, word[i--]));
 		if (++i)
 			sym = wsym[i]; // symbol is a reserved word
-		else if (strcmp(id, random_str) == 0)
-			sym = SYM_RANDOM;         //symbol is function "random"
-		else if (strcmp(id, print_str) == 0)
-			sym = SYM_PRINT;              //symbol is function "print"
 		else
 			sym = SYM_IDENTIFIER;   // symbol is an identifier
 	}
@@ -136,7 +127,7 @@ void getsym(void)
 		}
 		else
 		{
-			sym = SYM_NULL;       // illegal?
+			sym = SYM_COLON;       // illegal?
 		}
 	}
 	else if (ch == '>')
@@ -168,51 +159,6 @@ void getsym(void)
 		else
 		{
 			sym = SYM_LES;     // <
-		}
-	}
-	else if(ch=='/'){
-		getch();
-		if(ch=='/'){
-			sym=SYM_LINEEXPL;
-			while(cc!=ll) getch();
-			getsym();
-		}
-		else if(ch=='*'){
-			sym=SYM_BLOCKEXPLBEG;
-			blockExplanation();
-			getsym();
-		}
-		else sym=SYM_SLASH;
-	}
-	else if(ch=='|'){
-		getch();
-		if(ch=='|'){
-			sym=SYM_OR;
-			getch();
-		}
-		else{
-			printf("Fatal Error: Unknown character.\n");
-			exit(1);
-		}
-	}
-	else if(ch=='&'){
-		getch();
-		if(ch=='&'){
-			sym=SYM_AND;
-			getch();
-		}
-		else{
-			sym=SYM_ADR;
-		}
-	}
-	else if(ch=='*'){
-		getch();
-		if(ch=='/'){
-			sym=SYM_BLOCKEXPLEND;
-			getch();
-		}
-		else{
-			sym=SYM_TIMES;
 		}
 	}
 	else
@@ -262,27 +208,17 @@ void test(symset s1, symset s2, int n)
 		destroyset(s);
 	}
 } // test
-//actual variable initialize
-void actualinit(){
 
-}
 //////////////////////////////////////////////////////////////////////
 int dx;  // data allocation index
-//check redefination in same block.
-int redefinationcheck(char *id,int paranum){
-	int i;
-	for(i=tx;((mask*)&table[i])->address>=3;i--) if(!strcmp(id,table[i].name)) return 1;
-	int j=i;
-	for(i=0;i<paranum;i++) if(!strcmp(id,table[j--].name)) return 1;
-	return 0;
-}
+
 // enter object(constant, variable or procedre) into table.
-void enter(int kind,char *eid)
+void enter(int kind)
 {
 	mask* mk;
 
 	tx++;
-	strcpy(table[tx].name, eid);
+	strcpy(table[tx].name, id);
 	table[tx].kind = kind;
 	switch (kind)
 	{
@@ -302,71 +238,10 @@ void enter(int kind,char *eid)
 	case ID_PROCEDURE:
 		mk = (mask*) &table[tx];
 		mk->level = level;
-		mk->address = 0;
-		break;
-	case ID_ACTUAL:
-		mk=(mask*) &table[tx];
-		mk->level=level;
-		mk->address=dx++;
 		break;
 	} // switch
 } // enter
-int FindAddressConst(int tpos,int flag)
-{
-	int dim,ret;
-	getsym();
-	if (sym == SYM_NUMBER) dim=num;
-	else if(sym==SYM_IDENTIFIER){
-		int idx=position(id);
-		if(idx&&table[idx].kind==ID_CONSTANT) dim=table[idx].value;
-		else error(0);
-	}
-	getsym();
-	if (sym == SYM_RSQ)
-	{
-		getsym();
-		if (sym == SYM_LSQ) ret=dim*FindAddressConst(tpos,1);
-		else ret=dim;
-	}
-	else error(31);
-	if(flag) adddim(tpos,ret);
-	return ret;
-}
-int findaddress(symset fsys,int dims){
-	getsym();
-	orcondition(fsys);
-	if(nextdim[dims]){
-		gen(LIT,0,dimList[dims]);
-		gen(OPR,0,OPR_MUL);
-	}
-	gen(OPR,0,OPR_ADD);
-	//getsym();
-	if(sym==SYM_RSQ){
-		getsym();
-		if(sym==SYM_LSQ){
-			findaddress(fsys,nextdim[dims]);
-		}
-	}
-	else error(31);
-}
-void enterArray(char *eid)
-{
-	mask* mk;
-	tx++;
-	strcpy(table[tx].name, eid);
-	table[tx].kind = ID_VARIABLE;
-	mk = (mask*)&table[tx];
-	mk->level = level;
-	mk->address=dx;
-	firstdim[tx]=0;
-	adddim(tx,1);
-	int ofs=FindAddressConst(tx,0);
-	int it;
-	dx+=ofs;
-}
-void genoffset(symset fsys,int arrayid){
-	findaddress(fsys,firstdim[arrayid]);
-}
+
 //////////////////////////////////////////////////////////////////////
 // locates identifier in symbol table.
 int position(char* id)
@@ -375,9 +250,6 @@ int position(char* id)
 	strcpy(table[0].name, id);
 	i = tx + 1;
 	while (strcmp(table[--i].name, id) != 0);
-		/*
-			So as parameter list. dx<=-1.
-		*/
 	return i;
 } // position
 
@@ -394,7 +266,7 @@ void constdeclaration()
 			getsym();
 			if (sym == SYM_NUMBER)
 			{
-				enter(ID_CONSTANT,id);
+				enter(ID_CONSTANT);
 				getsym();
 			}
 			else
@@ -411,59 +283,12 @@ void constdeclaration()
 } // constdeclaration
 
 //////////////////////////////////////////////////////////////////////
-void vardeclaration(symset fsys,int paranum)
+void vardeclaration(void)
 {
-	int actualflag=0;
-	if(sym==SYM_ADR){
-		getsym();
-		actualflag=1;
-	}
 	if (sym == SYM_IDENTIFIER)
 	{
-		if(actualflag){
-			char tmp[20];
-			strcpy(tmp,id);
-			getsym();
-			if(sym==SYM_EQU){
-				getsym();
-				if(sym==SYM_IDENTIFIER){
-					int pos=position(id);
-					if(!pos||((mask*)(&table[pos]))->kind==ID_CONSTANT||((mask*)(&table[pos]))->kind==ID_PROCEDURE) error(27);
-						enter(ID_ACTUAL,tmp);
-						if(((mask*)(&table[pos]))->kind==ID_VARIABLE){
-							getsym();
-							if(sym==SYM_LSQ){
-								if(((mask*)&table[pos])->address<0) gen(LOD,0,((mask*)(&table[pos]))->address);
-								else gen(ADR,level-((mask*)(&table[pos]))->level,((mask*)(&table[pos]))->address);
-								findaddress(fsys,firstdim[pos]);
-							}
-							else gen(ADR,level-((mask*)(&table[pos]))->level,((mask*)(&table[pos]))->address);
-						}
-						else if(((mask*)(&table[pos]))->kind==ID_ACTUAL){
-							gen(LOD,0,((mask*)(&table[pos]))->address);
-							getsym();
-						}
-						gen(STO,0,((mask*)&table[tx])->address);
-				}
-				else{
-					error(27);
-				}
-			}
-			else{
-				error(27);
-			}
-		}
-		else{
-			if(!redefinationcheck(id,paranum)){
-				getsym();
-				if(sym==SYM_LSQ) enterArray(id);
-				else enter(ID_VARIABLE,id);
-			}
-			else{
-				error(26);
-				getsym();
-			}
-		}
+		enter(ID_VARIABLE);
+		getsym();
 	}
 	else
 	{
@@ -479,17 +304,20 @@ void listcode(int from, int to)
 	printf("\n");
 	for (i = from; i < to; i++)
 	{
-		printf("code---%5d %s\t%d\t%d\n", i, mnemonic[code[i].f], code[i].l, code[i].a);
+		printf("%5d %s\t%d\t%d\n", i, mnemonic[code[i].f], code[i].l, code[i].a);
 	}
 	printf("\n");
 } // listcode
 
+//////////////////////////////////////////////////////////////////////
 void factor(symset fsys)
 {
 	void expression(symset fsys);
 	int i;
 	symset set;
+	
 	test(facbegsys, fsys, 24); // The symbol can not be as the beginning of an expression.
+
 	if (inset(sym, facbegsys))
 	{
 		if (sym == SYM_IDENTIFIER)
@@ -505,31 +333,17 @@ void factor(symset fsys)
 					mask* mk;
 				case ID_CONSTANT:
 					gen(LIT, 0, table[i].value);
-					getsym();
 					break;
 				case ID_VARIABLE:
 					mk = (mask*) &table[i];
-					getsym();
-					if(sym==SYM_LSQ){
-						gen(ADR,level-mk->level,mk->address);
-						genoffset(fsys,i);
-						gen(LOA,-1,0);
-					}
-					else{
-						gen(LOD, level - mk->level, mk->address);
-					}
-					break;
-				case ID_ACTUAL:
-					mk=(mask*)&table[i];
-					gen(LOA,level-mk->level,mk->address);
-					getsym();
+					gen(LOD, level - mk->level, mk->address);
 					break;
 				case ID_PROCEDURE:
 					error(21); // Procedure identifier can not be in an expression.
 					break;
 				} // switch
 			}
-			//getsym();
+			getsym();
 		}
 		else if (sym == SYM_NUMBER)
 		{
@@ -545,8 +359,7 @@ void factor(symset fsys)
 		{
 			getsym();
 			set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);
-			//expression(set);
-			orcondition(set);
+			expression(set);
 			destroyset(set);
 			if (sym == SYM_RPAREN)
 			{
@@ -563,36 +376,6 @@ void factor(symset fsys)
 			 factor(fsys);
 			 gen(OPR, 0, OPR_NEG);
 		}
-		else if (sym == SYM_RANDOM) {
-			getsym();
-			if (sym == SYM_LPAREN) {
-				getsym();
-				if (sym == SYM_RPAREN) {   //锟斤拷锟斤拷为锟斤拷
-					gen(LIT, 0, 32767);
-					gen(OPR, 0, OPR_RAN);
-					getsym();
-				}
-				else {    //锟斤拷锟斤拷为锟斤拷锟斤拷, const, var, 锟斤拷锟斤拷式
-					set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);
-					expression(set);
-					destroyset(set);
-					if (sym == SYM_RPAREN) {
-						gen(OPR, 0, OPR_RAN);
-						getsym();
-					}
-				}
-			}
-		}
-		else if(sym==SYM_NOT){
-			 getsym();
-			 factor(fsys);
-			 gen(OPR, 0, OPR_NOT);
-		}
-		setinsert(fsys,SYM_COMMA);
-		setinsert(fsys,SYM_RPAREN);
-		setinsert(fsys,SYM_AND);
-		setinsert(fsys,SYM_OR);
-		setinsert(fsys,SYM_RSQ);
 		test(fsys, createset(SYM_LPAREN, SYM_NULL), 23);
 	} // if
 } // factor
@@ -648,6 +431,7 @@ void expression(symset fsys)
 
 	destroyset(set);
 } // expression
+
 //////////////////////////////////////////////////////////////////////
 void condition(symset fsys)
 {
@@ -667,7 +451,7 @@ void condition(symset fsys)
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
-			return;
+			error(20);
 		}
 		else
 		{
@@ -699,165 +483,6 @@ void condition(symset fsys)
 	} // else
 } // condition
 
-void callProc(int procindex,symset fsys){
-	mask *mk=(mask*)&table[procindex];
-	int savedCx=cx,it,paramindex[20],pmnum=mk->level,erflag=0;
-	for(it=first[procindex];it;it=next[it])
-		paramindex[pmnum+1+((mask*)&globalParamList[it])->address]=it;
-	getsym();
-	if(sym!=SYM_LPAREN) erflag=1;
-	else{
-		for(it=1;it<=pmnum;it++){
-			getsym();
-			if(((mask*)&globalParamList[paramindex[it]])->kind==ID_ACTUAL){
-				if(sym==SYM_IDENTIFIER){
-					int key=position(id);
-					if(!key) erflag=1;
-					if(table[key].kind==ID_CONSTANT || table[key].kind==ID_PROCEDURE){
-						erflag=12;
-						error(12);
-					}
-					else if(table[key].kind==ID_VARIABLE){
-						getsym();
-						if(sym==SYM_LSQ){
-							if(((mask*)&table[key])->address<0) gen(LOD,0,((mask*)&table[key])->address);
-							else gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
-							findaddress(fsys,firstdim[key]);
-						}
-						else gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
-					}
-					else if(table[key].kind==ID_ACTUAL){
-						gen(LOD,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
-						getsym();
-					}
-				}
-				else erflag=1;
-			}
-			else if(((mask*)&globalParamList[paramindex[it]])->kind==ID_VARIABLE){
-				int idx=dimidlist[paramindex[it]];
-				printf("test4 %s\n",id);
-				if(firstdim[idx]){
-					if(sym==SYM_IDENTIFIER){
-						int idx2=position(id);
-						if(idx2&&table[idx2].kind==ID_VARIABLE&&firstdim[idx2]){
-							if(((mask*)&table[idx2])->address<0) gen(LOD,0,((mask*)&table[idx2])->address);
-							else gen(ADR,level-((mask*)&table[idx2])->level,((mask*)&table[idx2])->address);
-						}
-					}
-					getsym();
-				}
-				else orcondition(fsys);
-			}
-			if(it!=pmnum&&sym!=SYM_COMMA||it==pmnum&&sym!=SYM_RPAREN){
-				error(30);
-				erflag=1;
-				break;
-			}
-		}
-		if(erflag==1){
-			while(sym!=SYM_SEMICOLON) getsym();
-			error(30);
-			cx=savedCx;
-		}
-		if(!erflag){
-			gen(CAL,level,mk->address);
-			getsym();
-		}
-	}
-	
-	/*
-	mask *mk=(mask*)&table[procindex];
-	int savedCx=cx,it,paramindex[20],pmnum=mk->level,erflag=0;
-	for(it=first[procindex];it;it=next[it])
-		paramindex[pmnum+1+((mask*)&globalParamList[it])->address]=it;
-	getsym();
-	if(sym!=SYM_LPAREN) erflag=1;
-	else{
-		for(it=1;it<=pmnum;it++){
-			if(((mask*)&globalParamList[paramindex[it]])->kind==ID_ACTUAL){
-				getsym();
-				if(sym==SYM_RPAREN){
-					erflag=1;
-					break;
-				}
-				else if(sym==SYM_COMMA){
-					erflag=1;
-				}
-				else if(sym==SYM_IDENTIFIER){
-					int key=position(id);
-					if(!key) erflag=1;
-					if(table[key].kind==ID_CONSTANT || table[key].kind==ID_PROCEDURE){
-						erflag=12;
-						error(12);
-					}
-					else if(table[key].kind==ID_VARIABLE){
-						gen(ADR,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
-					}
-					else if(table[key].kind==ID_ACTUAL){
-						gen(LOD,level-((mask*)&table[key])->level,((mask*)&table[key])->address);
-					}
-				}
-				else{
-					erflag=12;
-					error(12);
-				}
-				getsym();
-			}
-			else if(((mask*)&globalParamList[paramindex[it]])->kind==ID_VARIABLE){
-				getsym();
-				if(sym==SYM_RPAREN){
-					erflag=1;
-					break;
-				}
-				else if(sym==SYM_COMMA){
-					erflag=1;
-				}
-				else{
-					expression(fsys);
-				}
-			}
-			if(it!=pmnum){
-				if(sym!=SYM_COMMA){
-					erflag=1;
-					if(sym==SYM_COMMA){
-						error(30);
-						break;
-					}
-				}
-			}
-			else{
-				if(sym!=SYM_RPAREN){
-					error(30);
-				}
-			}
-		}
-		if(erflag==1){
-			error(29);
-		}
-		if(erflag){
-			cx=savedCx;
-		}
-		if(!erflag){
-			gen(CAL,level,mk->address);
-		}
-	}*/
-}
-void andcondition(symset fsys){
-	condition(fsys);
-	while(sym==SYM_AND){
-		getsym();
-		condition(fsys);
-		gen(OPR,0,OPR_AND);
-	}
-}
-void orcondition(symset fsys){
-	andcondition(fsys);
-	while(sym==SYM_OR){
-		getsym();
-		andcondition(fsys);
-		gen(OPR,0,OPR_OR);
-	}
-}
 //////////////////////////////////////////////////////////////////////
 void statement(symset fsys)
 {
@@ -871,20 +496,12 @@ void statement(symset fsys)
 		{
 			error(11); // Undeclared identifier.
 		}
-		else if (table[i].kind != ID_VARIABLE&&table[i].kind != ID_ACTUAL)
+		else if (table[i].kind != ID_VARIABLE)
 		{
 			error(12); // Illegal assignment.
 			i = 0;
 		}
 		getsym();
-		int arrayflag=0;
-		if(sym==SYM_LSQ){
-			mk=(mask*)(&table[i]);
-			if(mk->address<0) gen(LOD,0,mk->address);
-			else gen(ADR,level-mk->level,mk->address);
-			genoffset(fsys,i);
-			arrayflag=1;
-		}
 		if (sym == SYM_BECOMES)
 		{
 			getsym();
@@ -893,21 +510,11 @@ void statement(symset fsys)
 		{
 			error(13); // ':=' expected.
 		}
-		//printf("test1 %d\n",i);
 		expression(fsys);
 		mk = (mask*) &table[i];
 		if (i)
 		{
-			if(arrayflag){
-				gen(OPR,0,OPR_MOV);
-			}
-			else{
-				if(table[i].kind==ID_VARIABLE)
-					gen(STO, level - mk->level, mk->address);
-				else if (table[i].kind==ID_ACTUAL){
-					gen(STA,level-mk->level,mk->address);
-				}
-			}
+			gen(STO, level - mk->level, mk->address);
 		}
 	}
 	else if (sym == SYM_CALL)
@@ -927,15 +534,13 @@ void statement(symset fsys)
 			{
 				mask* mk;
 				mk = (mask*) &table[i];
-				callProc(i,fsys);
-				/*
-				if(paramCheck(i))
-				gen(CAL,level, mk->address);*/
+				gen(CAL, level - mk->level, mk->address);
 			}
 			else
 			{
 				error(15); // A constant or variable can not be called. 
 			}
+			getsym();
 		}
 	} 
 	else if (sym == SYM_IF)
@@ -943,10 +548,12 @@ void statement(symset fsys)
 		getsym();
 		set1 = createset(SYM_THEN, SYM_DO, SYM_NULL);
 		set = uniteset(set1, fsys);
-		//condition(set);
-		orcondition(set);
+		condition(set);
 		destroyset(set1);
 		destroyset(set);
+		
+		
+
 		if (sym == SYM_THEN)
 		{
 			getsym();
@@ -957,9 +564,42 @@ void statement(symset fsys)
 		}
 		cx1 = cx;
 		gen(JPC, 0, 0);
+
+		//修改
+		set = uniteset(statbegsys, createset(SYM_IDENTIFIER, SYM_NULL));
+		while (inset(sym, set))
+		{
 			statement(fsys);
-		code[cx1].a = cx;	
+			getsym();
+		}
+		destroyset(set);
+		code[cx1].a = cx;
+
+		if (sym == SYM_ENDIF)
+		{
+			getsym();
+		}
+		else if (sym == SYM_ELSE)
+		{
+			cx2 = cx;
+			gen(JMP, 0, 0);
+			code[cx1].a = cx;
+			set = uniteset(statbegsys, createset(SYM_IDENTIFIER, SYM_NULL));
+			getsym();
+			{
+				statement(fsys);
+				getsym();
+			}
+			code[cx2].a = cx;
+			if (sym == SYM_ENDIF)
+			{
+				getsym();
+			}
+		}
+
+		
 	}
+	//
 	else if (sym == SYM_BEGIN)
 	{ // block
 		getsym();
@@ -995,7 +635,7 @@ void statement(symset fsys)
 		getsym();
 		set1 = createset(SYM_DO, SYM_NULL);
 		set = uniteset(set1, fsys);
-		orcondition(set);
+		condition(set);
 		destroyset(set1);
 		destroyset(set);
 		cx2 = cx;
@@ -1012,94 +652,78 @@ void statement(symset fsys)
 		gen(JMP, 0, cx1);
 		code[cx2].a = cx;
 	}
-	else if (sym == SYM_PRINT) {
+
+	//修改
+	else if (sym == SYM_LES)
+	{//<
 		getsym();
-		if (sym == SYM_LPAREN) {
-			getsym();
-			if (sym == SYM_RPAREN) {   //锟斤拷锟斤拷为锟斤拷
-				gen(PRT, 0, 0);
-				getsym();
-			}
-			else {    //锟斤拷锟斤拷锟斤拷为锟斤拷
-				i = 0;
-				do {
-					if (i != 0)
-						getsym();
-					set = uniteset(createset(SYM_COMMA, SYM_NULL), fsys);
-					expression(set);
-					destroyset(set);
-					i++;
-				} while (sym == SYM_COMMA);
-				gen(PRT, 0, i);
-				getsym();
-			}
+		if (sym != SYM_NUMBER)
+		{
+			error(0);
 		}
-	}//add by HuangXi    end
+		getsym();
+		if (sym != SYM_GTR)
+		{
+			error(0);
+		}
+		getsym();
+		if (sym != SYM_COLON)
+		{
+			error(0);
+		}
+		getsym();
+		labelcx[num] = cx;
+		statement(fsys);
+	}
+
+
+	else if (sym == SYM_GOTO)
+	{
+		getsym();
+		if (sym != SYM_LES)
+		{//goto后面不是'<'
+			error(0);
+		}
+		getsym();
+		if (sym != SYM_NUMBER)
+		{// '<' 后面不是数字
+			error(0);
+		}
+		int i;
+		for (i = 0; i < labeltotal && num == labelnum[i] ; i++)
+		{
+			if (num == labelnum[i])
+				break;
+		}
+
+		if (i >= labeltotal)
+		{//未声明
+			error(0);
+		}
+
+		getsym();
+		if (sym != SYM_GTR)
+		{//goto<num后面没有'>'
+			error(0);
+		}
+		getsym();
+		if (sym != SYM_SEMICOLON)
+		{
+			error(0);
+		}
+
+		gotonum[gotototal][0] = labelnum[i];
+		gotonum[gotototal][1] = cx;
+		gotototal++;
+		gen(JMP, 0, 0);
+	}
+	//
+
 	test(fsys, phi, 19);
-	//getsym();
 } // statement
-
-int paramlistInit(int procindex){
-	int paranum=0,ads=0;
-	char eid[20];
-	do{
-		getsym();
-		int actualflag=0,arrayflag=0;
-		if(sym==SYM_IDENTIFIER){
-			strcpy(eid,id);
-			actualflag=0;
-			getsym();
-			if(sym==SYM_LSQ) arrayflag=1;
-		}
-		else if(sym==SYM_ADR){
-			getsym();
-			if(sym==SYM_IDENTIFIER){
-				strcpy(eid,id);
-				actualflag=1;
-				getsym();
-			}
-			else{
-				error(28);
-			}
-		}
-		if(!redefinationcheck(id,0)){
-			printf("test4%s\n",id);
-			paranum++;
-			tx++;
-			if(actualflag) table[tx].kind=ID_ACTUAL;
-			else{
-				table[tx].kind=ID_VARIABLE;
-				if(arrayflag) {
-					firstdim[tx]=0;
-					//printf("test2%d\n",firstdim[tx]);
-					adddim(tx,1);
-					FindAddressConst(dimid+1,1);
-					//printf("test2%d\n",firstdim[tx]);
-				}
-			}
-			strcpy(table[tx].name,eid);
-			((mask*)&table[tx])->level=level;
-			((mask*)&table[tx])->address=ads++;
-			addparameter(procindex);
-			globalParamList[totalparam]=*((mask*)&table[tx]);
-			if(arrayflag) dimidlist[totalparam]=++dimid;
-		}
-		if(sym!=SYM_RPAREN&&sym!=SYM_COMMA){
-			error(29);
-		}
-		/*check comma*/
-	}while(sym!=SYM_RPAREN);
-	int it;
-	for(it=first[procindex];it;it=next[it])
-		globalParamList[it].address-=paranum;
-	for(it=procindex+1;it<=tx;it++)
-		((mask*)&table[it])->address-=paranum;
-	getsym();
-	return paranum;
-}
-
+			
 //////////////////////////////////////////////////////////////////////
-void block(symset fsys,int procindex)
+void block(symset fsys)
 {
 	int cx0; // initial code index
 	mask* mk;
@@ -1109,9 +733,9 @@ void block(symset fsys,int procindex)
 
 	dx = 3;
 	block_dx = dx;
-	mk = (mask*) &table[procindex];
+	mk = (mask*) &table[tx];
 	mk->address = cx;
-	gen(INT,0,0);
+	gen(JMP, 0, 0);
 	if (level > MAXLEVEL)
 	{
 		error(32); // There are too many levels.
@@ -1123,21 +747,11 @@ void block(symset fsys,int procindex)
 			getsym();
 			do
 			{
-				if(!redefinationcheck(id,mk->level))
-					constdeclaration();
-				else{
-					error(26);
-					getsym();
-				}
+				constdeclaration();
 				while (sym == SYM_COMMA)
 				{
 					getsym();
-					if(!redefinationcheck(id,mk->level))
-						constdeclaration();
-					else{
-						error(26);
-						getsym();
-					}
+					constdeclaration();
 				}
 				if (sym == SYM_SEMICOLON)
 				{
@@ -1156,11 +770,11 @@ void block(symset fsys,int procindex)
 			getsym();
 			do
 			{
-				vardeclaration(fsys,mk->level);
+				vardeclaration();
 				while (sym == SYM_COMMA)
 				{
 					getsym();
-					vardeclaration(fsys,mk->level);
+					vardeclaration();
 				}
 				if (sym == SYM_SEMICOLON)
 				{
@@ -1173,34 +787,59 @@ void block(symset fsys,int procindex)
 			}
 			while (sym == SYM_IDENTIFIER);
 		} // if
+
+		//修改
+		if (sym == SYM_LABEL)
+		{
+			getsym();
+			if (sym != SYM_LES)
+			{//label后面不是'<
+				error(0);
+			}
+			getsym();
+			if (num < 0 || num > 9999)
+			{//label<num>中数字超出范围
+				error(0);
+			}
+			getsym();
+			if (sym != SYM_GTR)
+			{//label<num后面没有'>'
+				error(0);
+			}
+
+			labelnum[labeltotal] = num;
+			labeltotal++;
+
+			if (labeltotal >= 10)
+			{//如果超过10个label
+				error(0);
+			}
+
+			getsym();
+			if (sym != SYM_SEMICOLON)
+			{//';'结尾
+				error(0);
+			}
+
+			getsym();
+		}
+		//
+
 		block_dx = dx; //save dx before handling procedure call!
-		int jmpcx=0;
 		while (sym == SYM_PROCEDURE)
 		{ // procedure declarations
-			if(!jmpcx){
-				jmpcx=cx;
-				gen(JMP,0,0);
-			}
 			getsym();
 			if (sym == SYM_IDENTIFIER)
 			{
-				if(!redefinationcheck(id,mk->level))
-					enter(ID_PROCEDURE,id);
-				else{
-					error(26);
-				}
+				enter(ID_PROCEDURE);
 				getsym();
 			}
 			else
 			{
 				error(4); // There must be an identifier to follow 'const', 'var', or 'procedure'.
 			}
-			savedTx = tx;
-			level++;
-			if(sym==SYM_LPAREN){
-				((mask*)&table[savedTx])->level=paramlistInit(tx);
-			}
-			else error(27);
+
+
 			if (sym == SYM_SEMICOLON)
 			{
 				getsym();
@@ -1210,9 +849,11 @@ void block(symset fsys,int procindex)
 				error(5); // Missing ',' or ';'.
 			}
 
+			level++;
+			savedTx = tx;
 			set1 = createset(SYM_SEMICOLON, SYM_NULL);
 			set = uniteset(set1, fsys);
-			block(set,savedTx);
+			block(set);
 			destroyset(set1);
 			destroyset(set);
 			tx = savedTx;
@@ -1221,7 +862,7 @@ void block(symset fsys,int procindex)
 			if (sym == SYM_SEMICOLON)
 			{
 				getsym();
-				set1 = createset(SYM_VAR,SYM_IDENTIFIER, SYM_PROCEDURE, SYM_NULL);
+				set1 = createset(SYM_IDENTIFIER, SYM_PROCEDURE, SYM_NULL);
 				set = uniteset(statbegsys, set1);
 				test(set, fsys, 6);
 				destroyset(set1);
@@ -1232,37 +873,19 @@ void block(symset fsys,int procindex)
 				error(5); // Missing ',' or ';'.
 			}
 		} // while
-		code[jmpcx].a=cx;
 		dx = block_dx; //restore dx after handling procedure call!
-		set1 = createset(SYM_VAR,SYM_IDENTIFIER, SYM_NULL);
+		set1 = createset(SYM_IDENTIFIER, SYM_NULL);
 		set = uniteset(statbegsys, set1);
 		test(set, declbegsys, 7);
 		destroyset(set1);
 		destroyset(set);
 	}
 	while (inset(sym, declbegsys));
-	code[mk->address].a=dx;
-	/*
+
 	code[mk->address].a = cx;
-	mk->address = cx;*/
+	mk->address = cx;
 	cx0 = cx;
-	int it;
-	/*
-	for(it=procindex+1;it<=tx;it++){
-		if(table[it].kind==ID_ACTUAL){
-			if(((mask*)&table[it])->address<0) continue;
-			int levdif=((mask*)&table[it])->level-((mask*)&table[reftable[it]])->level;
-			if(((mask*)&table[reftable[it]])->address<0&&((mask*)&table[reftable[it]])->kind==ID_ACTUAL){
-				gen(LOD,0,((mask*)&table[reftable[it]])->address);
-				gen(STO,0,((mask*)&table[it])->address);
-			}
-			else{
-				gen(ADR,levdif,((mask*)&table[reftable[it]])->address);
-				gen(STO,0,((mask*)&table[it])->address);
-			}
-		}
-	}*/
-	
+	gen(INT, 0, block_dx);
 	set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
 	set = uniteset(set1, fsys);
 	statement(set);
@@ -1289,16 +912,15 @@ void interpret()
 {
 	int pc;        // program counter
 	int stack[STACKSIZE];
-	memset(stack,0,sizeof(stack));
 	int top;       // top of stack
 	int b;         // program, base, and top-stack register
 	instruction i; // instruction register
-	int j;
+
 	printf("Begin executing PL/0 program.\n");
 
 	pc = 0;
 	b = 1;
-	top = 0;
+	top = 3;
 	stack[1] = stack[2] = stack[3] = 0;
 	do
 	{
@@ -1318,9 +940,6 @@ void interpret()
 				break;
 			case OPR_NEG:
 				stack[top] = -stack[top];
-				break;
-			case OPR_NOT:
-				stack[top] = !stack[top];
 				break;
 			case OPR_ADD:
 				top--;
@@ -1371,40 +990,13 @@ void interpret()
 				top--;
 				stack[top] = stack[top] <= stack[top + 1];
 				break;
-			case OPR_AND:
-				top--;
-				stack[top] = stack[top] && stack[top + 1];
-				break;
-			case OPR_OR:
-				top--;
-				stack[top] = stack[top] || stack[top + 1];
-				break;
-			case OPR_RAN:
-				stack[top] = rand() % stack[top];
-				break;
-			case OPR_MOV:
-				top--;
-				stack[stack[top+i.l]]=stack[top+1];
-				top--;
 			} // switch
-			break;
-		case ADR:
-			stack[++top]=base(stack,b,i.l)+i.a;
 			break;
 		case LOD:
 			stack[++top] = stack[base(stack, b, i.l) + i.a];
 			break;
-		case LOA:
-			if(i.l==-1) stack[top]=stack[stack[top+i.a]];
-			else stack[++top] = stack[stack[base(stack, b, i.l)+i.a]];
-			break;
 		case STO:
 			stack[base(stack, b, i.l) + i.a] = stack[top];
-			printf("%d\n", stack[top]);
-			top--;
-			break;
-		case STA:
-			stack[stack[base(stack, b, i.l)+i.a]] = stack[top];
 			printf("%d\n", stack[top]);
 			top--;
 			break;
@@ -1427,51 +1019,36 @@ void interpret()
 				pc = i.a;
 			top--;
 			break;
-		case PRT:
-			if (i.a == 0)     //锟睫诧拷锟斤拷锟斤拷锟斤拷印锟截筹拷锟斤拷
-				sprintf(output+strlen(output),"\n");
-			else                //锟叫诧拷锟斤拷
-				for (j = top-i.a+1; j <=top; j++) {
-					sprintf(output+strlen(output),"%d ", stack[j]);
-				}
-				top-=i.a;
-			break;
 		} // switch
-		int it;
-		for(it=0;it<=top;it++){
-			fprintf(fpstack,"%4d",stack[it]);
-		}
-		fprintf(fpstack,"\n");
-		for(it=0;it<=top;it++){
-			if(it<10) fprintf(fpstack,"---");
-			else if(it<100) fprintf(fpstack,"--");
-			else if(it<1000) fprintf(fpstack,"-");
-			fprintf(fpstack,"%d",it);
-		}
-		fprintf(fpstack,"\n");
-		for(it=0;it<b;it++){
-			fprintf(fpstack,"    ");
-		}
-		fprintf(fpstack,"   b\n\n");
 	}
 	while (pc);
-	
+
 	printf("End executing PL/0 program.\n");
 } // interpret
- 
 
 //////////////////////////////////////////////////////////////////////
 void main ()
 {
-	srand((int)time(NULL));
 	FILE* hbin;
 	char s[80];
 	int i;
 	symset set, set1, set2;
 
-	printf("Please input source file name: \n"); // get file name to be compiled
-	//scanf("%s", s);
-	if ((infile = fopen("example.txt", "r")) == NULL)
+	//修改
+	for (int i = 0; i < 10000; i++)
+	{
+		labelcx[i] = 0;
+
+	}
+	for (int i = 0; i < 10; i++)
+	{
+		gotonum[i][0] = gotonum[i][1] = labelnum[i] = 0 ;
+	}
+	//修改结束
+
+	printf("Please input source file name: "); // get file name to be compiled
+	scanf("%s", s);
+	if ((infile = fopen(s, "r")) == NULL)
 	{
 		printf("File %s can't be opened.\n", s);
 		exit(1);
@@ -1481,9 +1058,11 @@ void main ()
 	relset = createset(SYM_EQU, SYM_NEQ, SYM_LES, SYM_LEQ, SYM_GTR, SYM_GEQ, SYM_NULL);
 	
 	// create begin symbol sets
-	declbegsys = createset(SYM_CONST, SYM_VAR, SYM_PROCEDURE, SYM_NULL);
-	statbegsys = createset(SYM_BEGIN, SYM_CALL, SYM_IF, SYM_WHILE, SYM_NULL);
-	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS,SYM_NOT,SYM_RANDOM, SYM_NULL);
+
+	//修改
+	declbegsys = createset(SYM_CONST, SYM_LABEL, SYM_PROCEDURE, SYM_VAR,  SYM_NULL);
+	statbegsys = createset(SYM_BEGIN, SYM_CALL, SYM_GOTO, SYM_IF, SYM_LABEL, SYM_LES, SYM_WHILE, SYM_LES, SYM_NULL);
+	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS, SYM_NULL);
 
 	err = cc = cx = ll = 0; // initialize global variables
 	ch = ' ';
@@ -1494,7 +1073,15 @@ void main ()
 	set1 = createset(SYM_PERIOD, SYM_NULL);
 	set2 = uniteset(declbegsys, statbegsys);
 	set = uniteset(set1, set2);
-	block(set,0);
+	block(set);
+
+	//修改 回填跳转地址
+	for (int i = 0; i < gotototal; i++)
+	{
+		code[gotonum[i][1]].a = labelcx[gotonum[i][0]];
+	}
+	//
+
 	destroyset(set1);
 	destroyset(set2);
 	destroyset(set);
@@ -1513,15 +1100,11 @@ void main ()
 			fwrite(&code[i], sizeof(instruction), 1, hbin);
 		fclose(hbin);
 	}
-	listvar();
-	fpstack=fopen("stacktest","w");
 	if (err == 0)
 		interpret();
 	else
 		printf("There are %d error(s) in PL/0 program.\n", err);
 	listcode(0, cx);
-	printf("output:\n%s\n",output);
-	fclose(fpstack);
 } // main
 
 //////////////////////////////////////////////////////////////////////
