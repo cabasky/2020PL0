@@ -876,9 +876,7 @@ void statement(symset fsys)
 				strcpy(eid,id);
 				getsym();
 				if(sym==SYM_LABELEND){
-					getsym();
 					enterlabel(eid,cx);
-					labelstatem=1;
 					return;
 				}
 				else{
@@ -993,14 +991,11 @@ void statement(symset fsys)
 		set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
 		set = uniteset(set1, fsys);
 		statement(set);
-		while (sym == SYM_SEMICOLON || inset(sym, statbegsys)||labelstatem||elsestatem)
+		while (sym == SYM_SEMICOLON ||sym==SYM_LABELEND|| inset(sym, statbegsys)||elsestatem)
 		{
-			if (sym == SYM_SEMICOLON)
+			if (sym == SYM_SEMICOLON||sym==SYM_LABELEND)
 			{
 				getsym();
-			}
-			else if(labelstatem){
-				labelstatem=0;
 			}
 			else if(elsestatem){
 				elsestatem=0;
