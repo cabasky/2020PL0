@@ -6,5 +6,5 @@ begin
 	if n<>1 then call func(n-1,random(10*20));
 end;
 begin
-	call func(10,20)
+	call func(10,20);
 end.

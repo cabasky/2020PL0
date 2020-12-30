@@ -15,11 +15,11 @@ int labelpos(char *lid){
     }
     return i;
 }
-void enterlabel(char *lid,char codex){
+void enterlabel(char *lid,int codex){
     ltable[++lx].cx=codex;
     strcpy(ltable[lx].name,lid);
 }
-void entergoto(char *gid,char codex){
+void entergoto(char *gid,int codex){
     gtlist[++gx].cx=codex;
     strcpy(gtlist[gx].name,gid);
 }

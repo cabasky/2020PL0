@@ -333,7 +333,7 @@ int FindAddressConst(int tpos,int flag)
 	if(flag) adddim(tpos,ret);
 	return ret;
 }
-int findaddress(symset fsys,int dims){
+void findaddress(symset fsys,int dims){
 	getsym();
 	orcondition(fsys);
 	if(nextdim[dims]){
@@ -480,7 +480,7 @@ void listcode(int from, int to)
 	printf("\n");
 	for (i = from; i < to; i++)
 	{
-		printf("code---%5d %s\t%d\t%d\n", i, mnemonic[code[i].f], code[i].l, code[i].a);
+		printf(">>>%5d %s\t%d\t%d\n", i, mnemonic[code[i].f], code[i].l, code[i].a);
 	}
 	printf("\n");
 } // listcode
@@ -755,6 +755,7 @@ void callProc(int procindex,symset fsys){
 				break;
 			}
 		}
+		if(pmnum==0) getsym();
 		if(erflag==1){
 			while(sym!=SYM_SEMICOLON) getsym();
 			error(30);
@@ -907,7 +908,6 @@ void statement(symset fsys)
 		{
 			error(13); // ':=' expected.
 		}
-		//printf("test1 %d\n",i);
 		expression(fsys);
 		mk = (mask*) &table[i];
 		if (i)
@@ -1080,9 +1080,9 @@ void statement(symset fsys)
 int paramlistInit(int procindex){
 	int paranum=0,ads=0;
 	char eid[20];
-	do{
-		getsym();
+	while(sym!=SYM_RPAREN){
 		int actualflag=0,arrayflag=0;
+		getsym();
 		if(sym==SYM_IDENTIFIER){
 			strcpy(eid,id);
 			actualflag=0;
@@ -1100,6 +1100,7 @@ int paramlistInit(int procindex){
 				error(28);
 			}
 		}
+		else if(sym==SYM_RPAREN) break;
 		if(!redefinationcheck(id,0)){
 			paranum++;
 			tx++;
@@ -1108,10 +1109,8 @@ int paramlistInit(int procindex){
 				table[tx].kind=ID_VARIABLE;
 				if(arrayflag) {
 					firstdim[tx]=0;
-					//printf("test2%d\n",firstdim[tx]);
 					adddim(tx,1);
 					FindAddressConst(dimid+1,1);
-					//printf("test2%d\n",firstdim[tx]);
 				}
 			}
 			strcpy(table[tx].name,eid);
@@ -1125,7 +1124,7 @@ int paramlistInit(int procindex){
 			error(29);
 		}
 		/*check comma*/
-	}while(sym!=SYM_RPAREN);
+	}
 	int it;
 	for(it=first[procindex];it;it=next[it])
 		globalParamList[it].address-=paranum;
@@ -1307,7 +1306,7 @@ void block(symset fsys,int procindex)
 	destroyset(set);
 	gen(OPR, 0, OPR_RET); // return
 	test(fsys, phi, 8); // test for error: Follow the statement is an incorrect symbol.
-	listcode(cx0, cx);
+	//listcode(cx0, cx);
 } // block
 
 //////////////////////////////////////////////////////////////////////
@@ -1500,7 +1499,6 @@ void gotobackpatch(){
 	int i;
 	for(i=1;i<=gx;i++){
 		int lidx=labelpos(gtlist[i].name);
-		//printf("test5 %s %d \n",gtlist[g])
 		if(lidx){
 			code[gtlist[i].cx].a=ltable[lidx].cx;
 		}
@@ -1508,7 +1506,7 @@ void gotobackpatch(){
 	}
 }
 //////////////////////////////////////////////////////////////////////
-void main ()
+int main ()
 {
 	srand((int)time(NULL));
 	FILE* hbin;
@@ -1572,6 +1570,7 @@ void main ()
 	listgt();
 	printf("output:\n%s\n",output);
 	fclose(fpstack);
+	return 0;
 } // main
 
 //////////////////////////////////////////////////////////////////////
