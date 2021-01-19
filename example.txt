@@ -1,53 +1,17 @@
-const N=10;
+const N = 50;
 
-procedure swap(&a,&b);
-var t;
+var i,a[N];
+
+procedure f(i,a[N]);
+var b,&a=b,&ri =a;
 begin
-	t:=a;
-	a:=b;
-	b:=t;
+	 ri := 100;
 end;
 
-procedure qsort(a[N],l,r);
-var q,rp,wp,i;
-begin
-	if(l<r) then
-	begin
-		q:=a[r];
-		rp:=l-1;
-		wp:=l-1;
-		while(rp+1<r) do
-		begin
-			rp:=rp+1;
-			if(a[rp]<q) then
-			begin
-				wp:=wp+1;
-				call swap(a[rp],a[wp]);
-			end;
-		end;
-		rp:=rp+1;
-		wp:=wp+1;
-		call swap(a[rp],a[wp]);
-		call qsort(a,l,wp-1);
-		call qsort(a,wp+1,r);
-	end;
-end;
 
-var p[N],i,j;
 begin
-	i:=0;
-	while(i<N) do
-	begin
-		p[i]:=random(100);
-		print(p[i]);
-		i:=i+1;
-	end;
-	print();
-	call qsort(p,0,N-1);
-	i:=0;
-	while(i<N) do
-	begin
-		print(p[i]);
-		i:=i+1;
-	end;
+    i := 10;
+    call f(10,a);
+    print(a[i]);
 end.
+
